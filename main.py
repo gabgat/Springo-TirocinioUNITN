@@ -1,53 +1,31 @@
-#!/usr/bin/sudo python
+#!/usr/bin/sudo python3
 
 import argparse
-import ipaddress
 
-from nmap_ScanResult import ScanResult
-from nmap_Scanner import Scanner
-
-class IPScan:
-    def __init__(self, ip, intensity):
-        self.ip = ip
-        self.intensity = intensity
-        self.scanner = Scanner()
-
-    def sanitize_ip(self):
-        try:
-            # Validate IP address
-            ip = ipaddress.ip_address(self.ip)
-            print(f"\nIP {ip} is valid")
-            return True
-        except ValueError:
-            print(f"\nError: {self.ip} is not a valid IP address")
-            return False
-        except Exception as e:
-            print(f"\nUnexpected error validating IP: {str(e)}")
-            return False
-
-    def run(self):
-        print("\nChecking IP Address...")
-        if not self.sanitize_ip():
-            exit(100)
-
-        print("\nStarting Scan Phase...")
-        scan_result: ScanResult = self.scanner.start_scan(self.ip, self.intensity)
-        print("\nScan finished")
-        if scan_result:
-            print("\n--- Scan Results ---")
-            print(scan_result)
-            print("---------------------------\n")
-
+from Nmap.nmap_Scanner import IPScanner
+from ServiceDispatcher import Dispatcher
 
 
 if __name__ == '__main__':
-    """
+
     parser = argparse.ArgumentParser()
     parser.add_argument("ip", help="The IP of the machine you want to check")
-    parser.add_argument("intensity", type=int, choices=[0, 1, 2], help="The intensity of the scan")
+    parser.add_argument("intensity", type=int, choices=[0, 1, 2, 3], help="Increase the intensity (and duration) of the scan")
     args = parser.parse_args()
-    """
 
-    scanner = IPScan("5.180.168.88", 1)
-    #scanner = IPScan(args.ip, args.intensity)
-    scanner.run()
+    #ip_scanner = IPScanner("5.180.168.88", 1).run()
+    ip_scanner = IPScanner(args.ip, args.intensity).run()
+
+    Dispatcher().analyze(ip_scanner['services'])
+
+    for key, value in ip_scanner.items():
+        if isinstance(value, list):  # list of values (e.g. hostnames, open_ports)
+            print(f"{key}:")
+            for item in value:
+                print(f"  - {item}")
+        elif isinstance(value, dict):  # nested dict (e.g. services, os_info)
+            print(f"{key}:")
+            for sub_key, sub_val in value.items():
+                print(f"  {sub_key}: {sub_val}")
+        else:  # simple value such as the IP address string
+            print(f"{key}: {value}")
