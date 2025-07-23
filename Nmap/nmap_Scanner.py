@@ -2,7 +2,7 @@ import ipaddress
 import nmap
 
 from datetime import datetime
-from nmap_ScanResult import ScanResult
+from Nmap.nmap_ScanResult import ScanResult
 
 class IPScanner:
     def __init__(self, ip, intensity):
@@ -14,13 +14,13 @@ class IPScanner:
                 'args': '-T4 --source-port 53 -sV -O --osscan-guess --open'
             },
             1: {  # Normal scan
-                'args': '-T3 --source-port 53 -D RND:5,ME --data-length 25 --reason -sV -O --osscan-guess --open'
+                'args': '-T3 --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV -O --osscan-guess --open'
             },
             2: {  # Advanced scan
-                'args': '-p1-65535 -T2 --max-retries 3 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sV --version-intensity 5 -O --osscan-guess --open'
+                'args': '-p1-65535 -T2 --max-retries 3 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-intensity 5 -O --osscan-guess --open'
             },
             3: {  # Stealth scan
-                'args': '-p1-65535 -T2 --scan-delay 1s -f --source-port 53 -D RND:10,ME --data-length 25 --reason -sV --version-all -O --osscan-guess --open'
+                'args': '-p1-65535 -T2 --scan-delay 1s -f --source-port 53 -D RND:10,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
             }
         }
 
