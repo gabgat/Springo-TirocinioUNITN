@@ -1,23 +1,30 @@
 import ipaddress
 import nmap
+import os
 
 from datetime import datetime
-from Nmap.nmap_ScanResult import ScanResult
+from Tools.Nmap.nmap_ScanResult import ScanResult
 
 class IPScanner:
-    def __init__(self, ip, intensity):
+    def __init__(self, ip, intensity, output_dir):
         self.ip = ip
         self.intensity = intensity
         self.nm = nmap.PortScanner()
+        self.output_dir = output_dir
+        self.base_filename = f"namp_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
         self.scan_configs = {
             0: {  # Useless scan
-                'args': '-T4 --source-port 53 -sV -O --osscan-guess --open'
+                'args': '-T4 --source-port 53 -sV --version-intensity 5 -O --osscan-guess --open'
             },
             1: {  # Normal scan
-                'args': '-T3 --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV -O --osscan-guess --open'
+                'args': '-T3 --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-intensity 5 -O --osscan-guess --open'
             },
             2: {  # Advanced scan
-                'args': '-p1-65535 -T2 --max-retries 3 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-intensity 5 -O --osscan-guess --open'
+                'args': '-p1-65535 -T2 --max-retries 3 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
             },
             3: {  # Stealth scan
                 'args': '-p1-65535 -T2 --scan-delay 1s -f --source-port 53 -D RND:10,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
@@ -36,6 +43,45 @@ class IPScanner:
         except Exception as e:
             print(f"\nUnexpected error validating IP: {str(e)}")
             return False
+
+    # def save_nmap_xml(self):
+    #     """Save nmap output in XML format"""
+    #     try:
+    #         xml_file = os.path.join(self.output_dir, f"{self.base_filename}.xml")
+    #         with open(xml_file, 'w') as f:
+    #             f.write(self.nm.get_nmap_last_output())
+    #         print(f"XML output saved to: {xml_file}")
+    #
+    #         return xml_file
+    #
+    #     except Exception as e:
+    #         print(f"Error saving nmap output: {e}")
+    #         return {}
+
+
+    # def save_nmap_json(self, scan_result):
+    #     """Save detailed JSON report for further processing"""
+    #     json_file = os.path.join(self.output_dir, f"{self.base_filename}.json")
+    #
+    #     report_data = {
+    #         "scan_info": {
+    #             "target": self.ip,
+    #             "intensity": self.intensity,
+    #             "nmap_version": self.nm.nmap_version(),
+    #             "scan_args": self.scan_configs[self.intensity]['args']
+    #         },
+    #         "results": scan_result.to_dict() if scan_result else None,
+    #         "raw_nmap_output": self.nm.get_nmap_last_output()
+    #     }
+    #
+    #     try:
+    #         with open(json_file, 'w') as f:
+    #             json.dump(report_data, f, indent=2)
+    #         print(f"JSON report saved to: {json_file}")
+    #         return json_file
+    #     except Exception as e:
+    #         print(f"Error saving JSON report: {e}")
+    #         return None
 
 
     def start_scan(self, ip, intensity):
@@ -70,6 +116,9 @@ class IPScanner:
             os_info = self.extract_os_info(host_data)
 
             print(f"Scan completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+            #self.save_nmap_xml()
+            #self.save_nmap_json(ScanResult(ip, hostnames, open_ports, services, os_info))
 
             return ScanResult(ip, hostnames, open_ports, services, os_info)
 
@@ -106,10 +155,16 @@ class IPScanner:
             for port in host_data['tcp']:
                 port_info = host_data['tcp'][port]
                 if port_info['state'] == 'open':
-                    open_ports.append(port)
+                    service_name = port_info.get('name', 'unknown')
+
+                    if 'ssl-cert' in port_info.get('script', {}) and service_name == 'http':
+                        service_name = 'https'
+
+                    open_ports.append(f"{port}/tcp")
+
                     services[port] = {
                         'protocol': 'tcp',
-                        'name': port_info.get('name', 'unknown'),
+                        'name': service_name,
                         'product': port_info.get('product', ''),
                         'version': port_info.get('version', ''),
                         'extrainfo': port_info.get('extrainfo', ''),
@@ -122,10 +177,16 @@ class IPScanner:
             for port in host_data['udp']:
                 port_info = host_data['udp'][port]
                 if port_info['state'] in ['open', 'open|filtered']:
+                    service_name = port_info.get('name', 'unknown')
+
+                    if 'ssl-cert' in port_info.get('script', {}) and service_name == 'http':
+                        service_name = 'https'
+
                     open_ports.append(f"{port}/udp")
+
                     services[f"{port}/udp"] = {
                         'protocol': 'udp',
-                        'name': port_info.get('name', 'unknown'),
+                        'name': service_name,
                         'product': port_info.get('product', ''),
                         'version': port_info.get('version', ''),
                         'extrainfo': port_info.get('extrainfo', ''),
@@ -181,6 +242,7 @@ class IPScanner:
             print(scan_result)
             print("---------------------------\n")
 
+            print(scan_result.to_dict())
             return scan_result.to_dict()
 
         else:
