@@ -18,7 +18,7 @@ def execute_command(command, tool_name, output_file):
             universal_newlines=True
         )
 
-        stdout, stderr = process.communicate(timeout=600)  # 10 minute timeout
+        stdout, stderr = process.communicate(timeout=3600)  # 60 minute timeout
 
         result = {
             "tool": tool_name,
@@ -34,6 +34,9 @@ def execute_command(command, tool_name, output_file):
             result["status"] = "completed"
         elif tool_name == "Nikto" and process.returncode == 1:
             print(f"    {tool_name} completed successfully (vulnerabilities found)")
+            result["status"] = "completed"
+        elif tool_name == "SSH Audit" and process.returncode == 3:
+            print(f"    {tool_name} completed successfully")
             result["status"] = "completed"
         else:
             print(f"    {tool_name} failed with return code {process.returncode}")

@@ -155,7 +155,7 @@ class IPScanner:
             for port in host_data['tcp']:
                 port_info = host_data['tcp'][port]
                 if port_info['state'] == 'open':
-                    service_name = port_info.get('name', 'unknown')
+                    service_name = port_info.get('name')#, 'unknown')
 
                     if 'ssl-cert' in port_info.get('script', {}) and service_name == 'http':
                         service_name = 'https'
@@ -242,7 +242,7 @@ class IPScanner:
             print(scan_result)
             print("---------------------------\n")
 
-            print(scan_result.to_dict())
+            #print(scan_result.to_dict())
             return scan_result.to_dict()
 
         else:
