@@ -88,7 +88,7 @@ class Dispatcher:
             results['sslscan'] = sslscan.SSLScan(base_url, self.tools_dir, self.timestamp).run_sslscan()
 
         # Nikto scan
-        results['nikto'] = nikto.Nikto(base_url, self.tools_dir, self.timestamp).run_nikto()
+        results['nikto'] = nikto.Nikto(base_url, service_info['port'], self.tools_dir, self.timestamp).run_nikto()
 
         # Gobuster directory enumeration -> Will use FFUF
         #results['gobuster'] = gobuster.Gobuster(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_gobuster()
@@ -97,7 +97,7 @@ class Dispatcher:
         results['ffuf'] = ffuf.FFUF(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_ffuf()
 
         # Whatweb technology identification
-        results['whatweb'] = whatweb.Watweb(base_url, self.tools_dir, self.timestamp, self.max_threads).run_whatweb()
+        results['whatweb'] = whatweb.Watweb(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_whatweb()
 
         return {f"web_{service_info['port']}": results}
 

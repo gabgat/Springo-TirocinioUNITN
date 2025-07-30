@@ -13,4 +13,4 @@ class SSLScan:
     def run_sslscan(self):
         """Run SSLScan for SSL/TLS analysis"""
         cmd = f"sslscan {self.url} --xml={self.output_file}"
-        return execute_command(cmd, "SSLScan", self.output_file)
+        return execute_command(cmd, "SSLScan", self.output_file, self.url)

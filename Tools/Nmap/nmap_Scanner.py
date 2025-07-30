@@ -21,10 +21,10 @@ class IPScanner:
                 'args': '-T4 --source-port 53 -sV --version-intensity 5 -O --osscan-guess --open'
             },
             1: {  # Normal scan
-                'args': '-T3 --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-intensity 5 -O --osscan-guess --open'
+                'args': '-T3 --source-port 53 -D RND:5,ME -f --reason -sS -sC -sV --version-intensity 5 -O --osscan-guess --open'
             },
             2: {  # Advanced scan
-                'args': '-p1-65535 -T2 --max-retries 3 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
+                'args': '-p1-65535 -T3 --max-retries 2 -f --source-port 53 -D RND:5,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
             },
             3: {  # Stealth scan
                 'args': '-p1-65535 -T2 --scan-delay 1s -f --source-port 53 -D RND:10,ME --data-length 25 --reason -sS -sC -sV --version-all -O --osscan-guess --open'
@@ -155,7 +155,7 @@ class IPScanner:
             for port in host_data['tcp']:
                 port_info = host_data['tcp'][port]
                 if port_info['state'] == 'open':
-                    service_name = port_info.get('name')#, 'unknown')
+                    service_name = port_info.get('name', 'unknown')
 
                     if 'ssl-cert' in port_info.get('script', {}) and service_name == 'http':
                         service_name = 'https'

@@ -12,10 +12,14 @@ class ScanResult:
         result_str = f"Scan Result for IP: {self.ip_address}\n"
         if self.hostnames:
             result_str += f"Hostnames: {', '.join(self.hostnames)}\n"
-        if self.open_ports:
-            result_str += f"Porte Aperte: {', '.join(map(str, self.open_ports))}\n"
-            for port in sorted(self.open_ports):
-                service_info = self.services.get(port, {})
+        if self.services:
+            # Get all open ports from services (they should match open_ports)
+            open_ports = sorted(self.services.keys())
+            result_str += f"Porte Aperte: {', '.join(map(str, open_ports))}\n"
+
+            for port in open_ports:
+                service_info = self.services[port]  # Direct access since we know it exists
+
                 service_name = service_info.get('name', 'unknown')
                 product = service_info.get('product', '')
                 version = service_info.get('version', '')
@@ -31,6 +35,11 @@ class ScanResult:
                     service_str += f" ({extrainfo})"
 
                 result_str += f"{port:<9} open  {service_str}\n"
+        elif self.open_ports:
+            # Fallback to open_ports if services is empty
+            result_str += f"Porte Aperte: {', '.join(map(str, self.open_ports))}\n"
+            for port in self.open_ports:
+                result_str += f"{port:<9} open  unknown\n"
 
         if self.os_info:
             result_str += f"\nOS Detection:\n"

@@ -17,7 +17,7 @@ class Gobuster:
         """Run Gobuster directory enumeration"""
         print("\n" + self.url + "\n")
         cmd = f"gobuster dir -w {self.wordlist_path} -t {self.threads} -r -d -k -u {self.url} -o {self.output_file}"
-        return execute_command(cmd, "Gobuster", self.output_file)
+        return execute_command(cmd, "Gobuster", self.output_file, self.url)
 
     def extract_data(self):
         """Extract data from Gobuster output"""
