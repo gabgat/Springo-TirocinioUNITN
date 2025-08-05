@@ -13,7 +13,11 @@ class Hydra:
         self.output_file = os.path.join(tools_dir, f"Hydra_{self.port}_{self.timestamp}.txt")
 
         if self.service == "ssh" or self.service == "ftp":
-            self.wordlist = "ssh-betterdefaultpasslist.txt"
+            self.wordlist = "ssh-ftp-betterdefaultpasslist.txt"
+        elif self.service == "mysql" or self.service == "postgresql" or self.service == "mssql" or self.service == "mongodb" or self.service == "redis" or self.service == "oracle-listener":
+            self.wordlist = "dbs-betterdefaultpasslist.txt"
+        else:
+            self.wordlist = "big.txt"
 
         self.wordlist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Wordlists", self.wordlist)
 

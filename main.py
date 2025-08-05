@@ -39,7 +39,8 @@ def check_required_tools():
         'sslscan',
         'ffuf',
         'hydra',
-        'ssh-audit'
+        'ssh-audit',
+        'wpscan'
         #'enum4linux'
         #'smbclient'
         #'dnsrecon'

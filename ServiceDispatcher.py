@@ -1,13 +1,12 @@
 import os
+import socket
+import subprocess
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from Tools import nikto
+
+from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp
+from Tools.Nmap import nmap_Ftp, nmap_Ssh
 #from Tools import gobuster
-from Tools import whatweb
-from Tools import sslscan
-from Tools import ffuf
-from Tools import ssh_audit
-from Tools import hydra
 from ssl_domain_extractor import get_domain_from_ip
 
 class Dispatcher:
@@ -22,6 +21,9 @@ class Dispatcher:
         self.tools_dir = os.path.join(output_dir, "tools")
         if not os.path.exists(self.tools_dir):
             os.makedirs(self.tools_dir)
+
+        # Update Database
+        subprocess.run(["wpscan", "--update"])
 
     def analyze(self, services_dict, max_threads):
         self.max_threads = max_threads
@@ -49,8 +51,8 @@ class Dispatcher:
                         futures.append(executor.submit(self.analyze_ftp_service, service_info))
                     # elif service_info['name'] in ['mysql', 'postgresql', 'mssql']:
                     #     futures.append(executor.submit(self.analyze_database_service, service_info))
-                    # elif service_info['name'] == 'dns' or service_info.get('port') == 53:
-                    #     futures.append(executor.submit(self.analyze_dns_service, service_info))
+                    elif service_info['name'] == 'dns' or service_info.get('port') == 53:
+                        futures.append(executor.submit(self.analyze_dns_service, service_info))
                     # elif service_info['name'] == 'smtp':
                     #     futures.append(executor.submit(self.analyze_smtp_service, service_info))
                     # elif service_info['name'] in ['smb', 'netbios-ssn', 'microsoft-ds']:
@@ -99,6 +101,9 @@ class Dispatcher:
         # Whatweb technology identification
         results['whatweb'] = whatweb.Watweb(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_whatweb()
 
+        #WPScan vulnerability scanner
+        results['wpscan'] = wpscan.WPScan(base_url, service_info['port'], self.tools_dir, self.timestamp).run_wpscan()
+
         return {f"web_{service_info['port']}": results}
 
 
@@ -106,6 +111,11 @@ class Dispatcher:
         """Analyze SSH service"""
         print(f"Analyzing SSH service on port {service_info['port']}")
         results = {}
+
+        #base_url = f"ssh://{self.target_ip}:{service_info['port']}"
+
+        # Nmap SSH script
+        results['nmap_ssh'] = nmap_Ssh.NSSH(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nssh()
 
         # SSH audit
         results['ssh_audit'] = ssh_audit.SSH_Audit(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_ssh_audit()
@@ -120,29 +130,70 @@ class Dispatcher:
         print(f"Analyzing FTP service on port {service_info['port']}")
         results = {}
 
+        #base_url = f"ftp://{self.target_ip}:{service_info['port']}"
+
+        #Nmap FTP script
+        results['nmap_ftp'] = nmap_Ftp.NFTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nftp()
+
         # Hydra FTP brute force
         results['hydra_ftp'] = hydra.Hydra(self.target_ip, service_info['port'], "ftp", self.tools_dir, self.timestamp).run_hydra()
 
+        #Check FTP anonymous login
+        results['ftp_anon'] = anonym_ftp.AFTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_anonym_ftp()
+
         return {f"ftp_{service_info['port']}": results}
 
-    # def analyze_database_service(self, service_info):
-    #     """Analyze database services"""
-    #     print(f"Analyzing database service {service_info['name']} on port {service_info['port']}")
-    #     results = {}
-    #
-    #     # SQLMap for web-accessible databases
-    #     if service_info['name'] == 'mysql':
-    #         results['mysql_enum'] = self.run_mysql_enum(service_info['port'])
-    #         results['hydra_mysql'] = self.run_hydra_mysql(service_info['port'])
-    #     elif service_info['name'] == 'postgresql':
-    #         results['postgresql_enum'] = self.run_postgresql_enum(service_info['port'])
-    #
-    #     return {f"db_{service_info['name']}_{service_info['port']}": results}
+    def analyze_database_service(self, service_info):
+        """Analyze database services"""
+        print(f"Analyzing database service {service_info['name']} on port {service_info['port']}")
+        results = {}
+
+        # SQLMap for web-accessible databases
+        if service_info['name'] == 'mysql':
+            results['hydra_mysql'] = hydra.Hydra(self.target_ip, service_info['port'], "mysql", self.tools_dir, self.timestamp).run_hydra()
+        elif service_info['name'] == 'postgresql':
+            results['hydra_postgresql'] = hydra.Hydra(self.target_ip, service_info['port'], "postgres", self.tools_dir, self.timestamp).run_hydra()
+        elif service_info['name'] == 'ms-sql-s':
+            results['hydra_mssql'] = hydra.Hydra(self.target_ip, service_info['port'], "mssql", self.tools_dir, self.timestamp).run_hydra()
+        elif service_info['name'] == 'mongodb':
+            results['hydra_mongodb'] = hydra.Hydra(self.target_ip, service_info['port'], "mongodb", self.tools_dir, self.timestamp).run_hydra()
+        elif service_info['name'] == 'redis':
+            results['hydra_redis'] = hydra.Hydra(self.target_ip, service_info['port'], "redis", self.tools_dir, self.timestamp).run_hydra()
+        elif service_info['name'] == 'oracle-tns' or service_info['name'] == 'oracle':
+            results['hydra_oracle'] = hydra.Hydra(self.target_ip, service_info['port'], "oracle-listener", self.tools_dir, self.timestamp).run_hydra()
+
+
+        return {f"db_{service_info['name']}_{service_info['port']}": results}
+
+    def analyze_dns_service(self, service_info):
+        """Analyze DNS service"""
+        print(f"Analyzing DNS service on port {service_info['port']}")
+        results = {}
+
+        # DNS enumeration
+        results['dig'] = dig.Dig(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_dig()
+
+        return {f"dns_{service_info['port']}": results}
 
     def analyze_generic_service(self, service_info):
         """Analyze generic/unknown services"""
-        print(f"❓ Analyzing generic service {service_info['name']} on port {service_info['port']}")
-        results = {}
-        #TODO
+        print(f"Analyzing generic service {service_info['name']} on port {service_info['port']}")
 
-        return {f"generic_{service_info['name']}_{service_info['port']}": results}
+        #Check if service is in fact HTTP
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(4)
+        sock.connect((self.target_ip, int(service_info['port'])))
+        # Send minimal HTTP request
+        sock.send(b"HEAD / HTTP/1.0\r\n\r\n")
+        # Read first bytes of response
+        response = sock.recv(12)
+        sock.close()
+
+        # Check if response starts with HTTP
+        if response.startswith(b"HTTP/"):
+            print(f"Service {service_info['name']} on port {service_info['port']} is HTTP")
+            return self.analyze_web_service(service_info)
+        else:
+            results = {}
+
+            return {f"generic_{service_info['name']}_{service_info['port']}": results}
