@@ -1,7 +1,7 @@
 from nmap import nmap
 from printer import printerr, printout
 
-class NFTP:
+class NSMTP:
     def __init__(self, ip, port, tools_dir, timestamp):
         self.ip = ip
         self.port = port
@@ -9,10 +9,10 @@ class NFTP:
         self.timestamp = timestamp
         self.nm = nmap.PortScanner()
 
-    def run_nftp(self):
-        args = f"-sC -sV --script=ftp-* -p {self.port}"
+    def run_nsmtp(self):
+        args = f"-Pn --script=smtp-* -p {self.port}"
         try:
-            printout(f"Starting FTP nmap scan at {self.timestamp}")
+            printout(f"Starting SMTP nmap scan at {self.timestamp}")
             self.nm.scan(hosts=self.ip, arguments=args)
 
             return self.nm.get_nmap_last_output()
@@ -24,8 +24,8 @@ class NFTP:
             return None
         except KeyError as e:
             printerr(f"Key error accessing scan results: {e}")
-            printerr("This might indicate the FTP host is not responding or the scan failed.")
+            printerr("This might indicate the SMTP host is not responding or the scan failed.")
             return None
         except Exception as e:
-            printerr(f"Unexpected error during FTP nmap scan: {e}")
+            printerr(f"Unexpected error during SMTP nmap scan: {e}")
             return None

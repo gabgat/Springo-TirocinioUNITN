@@ -3,6 +3,7 @@ import ssl
 from cryptography import x509
 from cryptography.x509.oid import NameOID, ExtensionOID
 from urllib.parse import urlparse
+from printer import printerr, printwarn, printout
 
 
 def get_domain_from_ip(url):
@@ -14,7 +15,7 @@ def get_domain_from_ip(url):
     domains = []
 
     try:
-        print(f"Tentativo di connessione a: {url}")
+        printout(f"Tentativo di connessione a: {url}")
 
         # Parsing dell'URL formato https://ip:port
         parsed = urlparse(url)
@@ -22,19 +23,19 @@ def get_domain_from_ip(url):
         port = parsed.port
 
         if not host or not port:
-            print(f"Errore: URL malformato - {url}")
+            printerr(f"URL malformato - {url}")
             return []
 
-        print(f"Ottenendo certificato da {host}:{port}")
+        printout(f"Ottenendo certificato da {host}:{port}")
 
         # Usa ssl.get_server_certificate() che funziona anche con certificati non validati
         cert_pem = ssl.get_server_certificate((host, port), timeout=10)
 
         if not cert_pem:
-            print("Nessun certificato ricevuto")
+            printwarn("Nessun certificato ricevuto")
             return []
 
-        print("Certificato PEM ricevuto, parsing con cryptography...")
+        printout("Certificato PEM ricevuto, parsing con cryptography...")
 
         # Parse del certificato PEM
         cert_obj = x509.load_pem_x509_certificate(cert_pem.encode())
@@ -47,21 +48,21 @@ def get_domain_from_ip(url):
             # Usa il metodo corretto per iterare sui DNS names
             for name in san_ext.value.get_values_for_type(x509.DNSName):
                 domains.append(name)
-                print(f"Dominio trovato (SAN): {name}")
+                printout(f"Dominio trovato (SAN): {name}")
 
         except x509.ExtensionNotFound:
-            print("Nessun Subject Alternative Name trovato")
+            printwarn("Nessun Subject Alternative Name trovato")
         except Exception as e:
-            print(f"Errore durante l'estrazione del SAN: {e}")
+            printerr(f"Errore durante l'estrazione del SAN: {e}")
             # Prova metodo alternativo per SAN
             try:
                 for ext in cert_obj.extensions:
                     if ext.oid == ExtensionOID.SUBJECT_ALTERNATIVE_NAME:
                         for name in ext.value.get_values_for_type(x509.DNSName):
                             domains.append(name)
-                            print(f"Dominio trovato (SAN alternativo): {name}")
+                            printout(f"Dominio trovato (SAN alternativo): {name}")
             except Exception as alt_e:
-                print(f"Metodo alternativo SAN fallito: {alt_e}")
+                printwarn(f"Metodo alternativo SAN fallito: {alt_e}")
 
         # Se non ci sono domini nel SAN, cerca nel Common Name
         if not domains:
@@ -70,36 +71,35 @@ def get_domain_from_ip(url):
                 if cn_attrs:
                     cn = cn_attrs[0].value
                     domains.append(cn)
-                    print(f"Dominio trovato (CN): {cn}")
+                    printout(f"Dominio trovato (CN): {cn}")
             except (IndexError, AttributeError):
-                print("Nessun Common Name trovato")
+                printwarn("Nessun Common Name trovato")
 
         # Rimuove duplicati mantenendo l'ordine
         domains = list(dict.fromkeys(domains))
 
         if not domains:
-            print("Nessun dominio trovato nel certificato")
+            printwarn("Nessun dominio trovato nel certificato")
         else:
-            print(f"Domini estratti: {domains}")
+            printout(f"Domini estratti: {domains}")
 
     except ImportError as e:
-        print(f"Errore: libreria cryptography non installata - {e}")
-        print("Installa con: pip install cryptography")
+        printerr(f"Errore: libreria cryptography non installata - {e}")
         return []
     except socket.timeout:
-        print(f"Timeout durante la connessione a {url}")
+        printwarn(f"Timeout durante la connessione a {url}")
         return []
     except socket.gaierror as e:
-        print(f"Errore di risoluzione DNS per {url}: {e}")
+        printerr(f"Errore di risoluzione DNS per {url}: {e}")
         return []
     except ssl.SSLError as e:
-        print(f"Errore SSL durante la connessione a {url}: {e}")
+        printerr(f"Errore SSL durante la connessione a {url}: {e}")
         return []
     except ConnectionRefusedError:
-        print(f"Connessione rifiutata da {url}")
+        printerr(f"Connessione rifiutata da {url}")
         return []
     except Exception as e:
-        print(f"Errore imprevisto durante la connessione a {url}: {e}")
+        printerr(f"Errore imprevisto durante la connessione a {url}: {e}")
         return []
 
     return domains[0] if domains else None

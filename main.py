@@ -7,7 +7,8 @@ import os
 from datetime import datetime
 
 from Tools.Nmap.nmap_Scanner import IPScanner
-from ServiceDispatcher import Dispatcher
+from service_dispatcher import Dispatcher
+from printer import printerr, printwarn, printout, printsec
 
 
 def setup_output_directory(target_ip):
@@ -24,7 +25,7 @@ def setup_output_directory(target_ip):
     for directory in dirs_to_create:
         if not os.path.exists(directory):
             os.makedirs(directory)
-            print(f"  - Created directory: {directory}")
+            printout(f"Created directory: {directory}")
 
     return base_dir
 
@@ -40,41 +41,36 @@ def check_required_tools():
         'ffuf',
         'hydra',
         'ssh-audit',
-        'wpscan'
-        #'enum4linux'
-        #'smbclient'
-        #'dnsrecon'
-        #'dnsenum'
+        'wpscan',
+        'dig',
+        'enum4linux-ng',
+        'sqlmap'
     ]
 
-    print("\nChecking required tools...")
+    printsec("Checking required tools...")
     missing_tools = []
 
     for tool in tools:
         try:
             # Using shutil.which() - simplest and most reliable method
             if shutil.which(tool) is not None:
-                print(f"  -> {tool} - Found")
+                printout(f"{tool} Found")
             else:
                 missing_tools.append(tool)
-                print(f"  -> {tool} - Not found")
+                printwarn(f"{tool} Not found")
         except Exception:
-            print(f"  {tool} - Not found")
+            printwarn(f"{tool} Not found")
             missing_tools.append(tool)
 
     if missing_tools:
-        print(f"\nMissing tools: {', '.join(missing_tools)}")
-        print("Some scans may not work properly or give errors. Install missing tools for full functionality.")
+        printwarn(f"Missing tools: {', '.join(missing_tools)}")
+        printwarn("Some scans may not work properly or give errors. Install missing tools for full functionality.")
         response = input("Continue anyway? (y/N): ")
         if response.lower() != 'y':
             sys.exit(1)
     else:
-        print("\nAll tools are available!")
+        printout("All tools are available!")
 
-def print_scan_progress(stage, message):
-    """Print formatted progress messages"""
-    timestamp = datetime.now().strftime('%H:%M:%S')
-    print(f"\n[{timestamp}] -> {stage}: {message}")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -107,58 +103,49 @@ def main():
 
     # Setup output directory
     if args.output_dir:
-        print(f"\nSetting up custom output directory: {args.output_dir}")
+        printout(f"Setting up custom output directory: {args.output_dir}")
         output_dir = args.output_dir
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
     else:
-        print("\nSetting up auto-generated output directory")
+        printout("Setting up auto-generated output directory")
         output_dir = setup_output_directory(args.ip)
 
-    print(f"\nUsing output directory: {output_dir}")
+    printout(f"Using output directory: {output_dir}")
 
     try:
-        print("\n\n")
-        print("-" * 50)
-        print(" STARTING ")
-        print("-" * 50)
-        print("\n")
+        printout("STARTING... ")
 
         # Stage 1: Nmap Scanning
-        print_scan_progress("STAGE 1", "Nmap Network Scanning...")
+        printsec("STAGE 1 - Nmap Network Scanning...")
 
         scan_results = IPScanner(args.ip, args.intensity, os.path.join(output_dir, "tools")).run()
 
         if not scan_results:
-            print("Nmap scan failed. Exiting...")
+            printerr("Nmap scan failed. Exiting...")
             sys.exit(101)
 
-        print(f"Nmap scan completed. Found {len(scan_results.get('open_ports', []))} open ports!")
+        printout(f"Nmap scan completed. Found {len(scan_results.get('open_ports', []))} open ports!")
 
         #Service Analysis
-        print_scan_progress("STAGE 2", "Service-specific Analysis...")
+        printsec("STAGE 2 - Service-specific Analysis...")
 
-        dispatcher = Dispatcher(args.ip, output_dir)
+        dispatcher = Dispatcher(args.ip, output_dir, args.max_threads)
 
-        vulnerability_results = dispatcher.analyze(scan_results.get('services', {}), args.max_threads)
+        vulnerability_results = dispatcher.analyze(scan_results.get('services', {}))
 
-        print("Service analysis completed!")
+        printout("Service analysis completed!")
 
-        print("\n\n")
-        print("-" * 50)
-        print(" SCAN SUMMARY ")
-        print("-" * 50)
-        print("\n")
-        print(f"- Target: {args.ip}")
-        print(f"- Intensity Level: {args.intensity}")
-        print(f"- Open Ports: {len(scan_results.get('open_ports', []))}")
-        print(f"- Services Detected: {len(scan_results.get('services', {}))}")
-
-        print(f"- Output Directory: {output_dir}")
+        printsec(" SCAN SUMMARY ")
+        printout(f"Target: {args.ip}")
+        printout(f"Intensity Level: {args.intensity}")
+        printout(f"Open Ports: {len(scan_results.get('open_ports', []))}")
+        printout(f"Services Detected: {len(scan_results.get('services', {}))}")
+        printout(f"Output Directory: {output_dir}")
 
         # Display open ports and services
         if scan_results.get('open_ports'):
-            print("\nOPEN PORTS:")
+            printsec("OPEN PORTS:")
             for port in scan_results['open_ports']:
                 protocol = scan_results.get('services', {}).get(port, {}).get('protocol', 'unknown')
                 service_info = scan_results.get('services', {}).get(port, {})
@@ -173,13 +160,13 @@ def main():
                         service_str += f" {version}"
                     service_str += ")"
 
-                print(f"  {port}/{protocol} - {service_str}")
+                printout(f"{port}/{protocol} - {service_str}")
 
     except KeyboardInterrupt:
-        print("\n\n  Scan interrupted by user")
+        printerr("Scan interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n Unexpected error: {str(e)}")
+        printerr(f"Unexpected error: {str(e)}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -187,7 +174,7 @@ def main():
 if __name__ == '__main__':
 
     if os.geteuid() != 0:
-        print("This script must be run as root.")
+        printerr("This script must be run as root.")
         sys.exit(99)
 
     main()

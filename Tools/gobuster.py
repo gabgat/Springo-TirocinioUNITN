@@ -2,6 +2,7 @@ import os
 import re
 
 from execute_command import execute_command
+from printer import printerr, printwarn, printout
 
 class Gobuster:
     def __init__(self, url, port, tools_dir, timestamp, threads):
@@ -15,7 +16,6 @@ class Gobuster:
 
     def run_gobuster(self):
         """Run Gobuster directory enumeration"""
-        print("\n" + self.url + "\n")
         cmd = f"gobuster dir -w {self.wordlist_path} -t {self.threads} -r -d -k -u {self.url} -o {self.output_file}"
         return execute_command(cmd, "Gobuster", self.output_file, self.url)
 

@@ -4,6 +4,7 @@ import os
 
 from datetime import datetime
 from Tools.Nmap.nmap_ScanResult import ScanResult
+from printer import printerr, printwarn, printout
 
 class IPScanner:
     def __init__(self, ip, intensity, output_dir):
@@ -35,13 +36,13 @@ class IPScanner:
         try:
             # Validate IP address
             ip = ipaddress.ip_address(self.ip)
-            print(f"\nIP {ip} is valid")
+            printout(f"{ip} is valid")
             return True
         except ValueError:
-            print(f"\nError: {self.ip} is not a valid IP address")
+            printerr(f"{self.ip} is not a valid IP address")
             return False
         except Exception as e:
-            print(f"\nUnexpected error validating IP: {str(e)}")
+            printerr(f"Unexpected error validating IP: {str(e)}")
             return False
 
     # def save_nmap_xml(self):
@@ -85,20 +86,20 @@ class IPScanner:
 
 
     def start_scan(self, ip, intensity):
-        print(f'\nUsing Nmap versrion: {self.nm.nmap_version()}')
-        print(f'\nScanning {ip} with intensity {intensity}')
+        printout(f'Using Nmap versrion: {self.nm.nmap_version()}')
+        printout(f'Scanning {ip} with intensity {intensity}')
         #ports = self.scan_configs[intensity]['ports']
         args = self.scan_configs[intensity]['args']
         try:
-            print(f"\nStarting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            printout(f"Starting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             #self.nm.scan(ip, ports, args)
             self.nm.scan(hosts=ip, arguments=args)
 
             if not self.nm.all_hosts():
-                print(f"\nNo host found for {ip}.")
+                printwarn(f"No host found for {ip}.")
                 return None
             if self.nm[ip].state() != 'up':
-                print(f"\nIs the host at {ip} down?")
+                printwarn(f"Is the host at {ip} down?")
                 return None
 
             #print(self.nm.get_nmap_last_output())
@@ -115,7 +116,7 @@ class IPScanner:
             # Estrai informazioni OS
             os_info = self.extract_os_info(host_data)
 
-            print(f"Scan completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            printout(f"Scan completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
             #self.save_nmap_xml()
             #self.save_nmap_json(ScanResult(ip, hostnames, open_ports, services, os_info))
@@ -124,15 +125,15 @@ class IPScanner:
 
 
         except nmap.PortScannerError as e:
-            print(f"Nmap error: {e}")
-            print("Make sure Nmap is installed and in your PATH, and you have necessary permissions.")
+            printerr(f"Nmap error: {e}")
+            printerr("Make sure Nmap is installed and in your PATH, and you have necessary permissions.")
             return None
         except KeyError as e:
-            print(f"Key error accessing scan results: {e}")
-            print("This might indicate the host is not responding or the scan failed.")
+            printerr(f"Key error accessing scan results: {e}")
+            printerr("This might indicate the host is not responding or the scan failed.")
             return None
         except Exception as e:
-            print(f"Unexpected error during scan: {e}")
+            printerr(f"Unexpected error during scan: {e}")
             return None
 
     @staticmethod
@@ -230,21 +231,22 @@ class IPScanner:
         return os_info
 
     def run(self):
-        print("\nChecking IP Address...")
+        printout("Checking IP Address...")
         if not self.sanitize_ip():
             exit(100)
 
-        print("\nStarting Scan Phase...")
+        printout("Starting Scan Phase...")
         scan_result = self.start_scan(self.ip, self.intensity)
-        print("\nScan finished")
+        printout("Scan finished")
         if scan_result:
-            print("\n--- Scan Results ---")
-            print(scan_result)
-            print("---------------------------\n")
+            printout("------ Scan Results ------")
+            for line in str(scan_result).splitlines():
+                printout(line)
+            printout("---------------------------\n")
 
             #print(scan_result.to_dict())
             return scan_result.to_dict()
 
         else:
-            print("\nScan failed or no results obtained.")
+            printerr("Scan failed or no results obtained.")
             return None

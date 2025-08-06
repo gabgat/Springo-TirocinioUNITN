@@ -7,7 +7,7 @@ class SSH_Audit:
     def __init__(self, ip, port, tools_dir, timestamp):
         self.ip = ip
         self.port = port
-        self.url = f"{self.ip}:{self.port}"
+        self.url = f"ssh://{self.ip}:{self.port}"
         self.timestamp = timestamp
         self.output_file = os.path.join(tools_dir, f"SSH_Audit_{self.port}_{self.timestamp}.txt")
 

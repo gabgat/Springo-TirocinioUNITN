@@ -4,38 +4,43 @@ import subprocess
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp
-from Tools.Nmap import nmap_Ftp, nmap_Ssh
+from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp, enum4linux
+from Tools.Nmap import nmap_Ftp, nmap_Ssh, nmap_SMTP, nmap_SMB
 #from Tools import gobuster
 from ssl_domain_extractor import get_domain_from_ip
+from printer import printerr, printwarn, printout
 
 class Dispatcher:
-    def __init__(self, target_ip, output_dir):
+    def __init__(self, target_ip, output_dir, max_threads):
         self.target_ip = target_ip
         self.output_dir = output_dir
         self.max_threads = 4
         self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         self.results = {}
+        self.max_threads = max_threads
 
         # Create tools output directory
         self.tools_dir = os.path.join(output_dir, "tools")
         if not os.path.exists(self.tools_dir):
             os.makedirs(self.tools_dir)
 
-        # Update Database
-        subprocess.run(["wpscan", "--update"])
+    def analyze(self, services_dict):
 
-    def analyze(self, services_dict, max_threads):
-        self.max_threads = max_threads
+        # Update WPScan Database
+        try:
+            printout("Updating WPScan DB...")
+            subprocess.run(["wpscan", "--update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        except subprocess.CalledProcessError:
+            printerr("WPScan DB update failed.")
 
         if not services_dict:
-            print("No services to analyze")
+            printwarn("No services to analyze")
             return None
 
-        print(f"\n--- Starting Service Analysis for {self.target_ip} ---")
+        printout(f"--- Starting Service Analysis for {self.target_ip} ---")
 
         # Use ThreadPoolExecutor for concurrent tool execution
-        with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
             futures = []
 
             for port, service_info in services_dict.items():
@@ -49,14 +54,14 @@ class Dispatcher:
                         futures.append(executor.submit(self.analyze_ssh_service, service_info))
                     elif service_info['name'] == 'ftp':
                         futures.append(executor.submit(self.analyze_ftp_service, service_info))
-                    # elif service_info['name'] in ['mysql', 'postgresql', 'mssql']:
-                    #     futures.append(executor.submit(self.analyze_database_service, service_info))
-                    elif service_info['name'] == 'dns' or service_info.get('port') == 53:
+                    elif service_info['name'] in ['mysql', 'postgresql', 'mssql', 'ms-sql-s', 'mongodb', 'redis', 'oracle-tns', 'oracle']:
+                        futures.append(executor.submit(self.analyze_database_service, service_info))
+                    elif service_info['name'] in ['dns', 'domain'] or service_info.get('port') == 53:
                         futures.append(executor.submit(self.analyze_dns_service, service_info))
-                    # elif service_info['name'] == 'smtp':
-                    #     futures.append(executor.submit(self.analyze_smtp_service, service_info))
-                    # elif service_info['name'] in ['smb', 'netbios-ssn', 'microsoft-ds']:
-                    #     futures.append(executor.submit(self.analyze_smb_service, service_info))
+                    elif service_info['name'] in ['smtp', 'submission']:
+                        futures.append(executor.submit(self.analyze_smtp_service, service_info))
+                    elif service_info['name'] in ['smb', 'netbios-ssn', 'microsoft-ds']:
+                        futures.append(executor.submit(self.analyze_smb_service, service_info))
                     else:
                         futures.append(executor.submit(self.analyze_generic_service, service_info))
 
@@ -67,14 +72,14 @@ class Dispatcher:
                     if result:
                         self.results.update(result)
                 except Exception as e:
-                    print(f"Error in service analysis: {e}")
+                    printerr(f"Error in service analysis: {e}")
 
 
         return self.results
 
     def analyze_web_service(self, service_info):
         """Analyze HTTP/HTTPS services with multiple tools"""
-        print(f"Analyzing web service on port {service_info['port']}")
+        printout(f"Analyzing web service on port {service_info['port']}")
         results = {}
 
         if service_info['name'] == 'ssl/http' or service_info['name'] == 'https':
@@ -86,7 +91,7 @@ class Dispatcher:
 
         if protocol == 'https':
             base_url = f"https://{get_domain_from_ip(base_url)}"
-            print(f"Extracted domain from IP: {base_url}")
+            printout(f"Extracted domain from IP: {base_url}")
             results['sslscan'] = sslscan.SSLScan(base_url, self.tools_dir, self.timestamp).run_sslscan()
 
         # Nikto scan
@@ -109,7 +114,7 @@ class Dispatcher:
 
     def analyze_ssh_service(self, service_info):
         """Analyze SSH service"""
-        print(f"Analyzing SSH service on port {service_info['port']}")
+        printout(f"Analyzing SSH service on port {service_info['port']}")
         results = {}
 
         #base_url = f"ssh://{self.target_ip}:{service_info['port']}"
@@ -127,7 +132,7 @@ class Dispatcher:
 
     def analyze_ftp_service(self, service_info):
         """Analyze FTP service"""
-        print(f"Analyzing FTP service on port {service_info['port']}")
+        printout(f"Analyzing FTP service on port {service_info['port']}")
         results = {}
 
         #base_url = f"ftp://{self.target_ip}:{service_info['port']}"
@@ -145,7 +150,7 @@ class Dispatcher:
 
     def analyze_database_service(self, service_info):
         """Analyze database services"""
-        print(f"Analyzing database service {service_info['name']} on port {service_info['port']}")
+        printout(f"Analyzing database service {service_info['name']} on port {service_info['port']}")
         results = {}
 
         # SQLMap for web-accessible databases
@@ -167,7 +172,7 @@ class Dispatcher:
 
     def analyze_dns_service(self, service_info):
         """Analyze DNS service"""
-        print(f"Analyzing DNS service on port {service_info['port']}")
+        printout(f"Analyzing DNS service on port {service_info['port']}")
         results = {}
 
         # DNS enumeration
@@ -175,9 +180,31 @@ class Dispatcher:
 
         return {f"dns_{service_info['port']}": results}
 
+    def analyze_smtp_service(self, service_info):
+        """Analyze SMTP service"""
+        printout(f"Analyzing SMTP service on port {service_info['port']}")
+        results = {}
+
+        # SMTP enumeration
+        results['nmap_smtp'] = nmap_SMTP.NSMTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nsmtp()
+
+        return {f"smtp_{service_info['port']}": results}
+
+    def analyze_smb_service(self, service_info):
+        """Analyze SMB service"""
+        printout(f"Analyzing SMB service on port {service_info['port']}")
+        results = {}
+
+        # SMB enumeration
+        results['nmap_ftp'] = nmap_SMB.NSMB(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nsmb()
+
+        results['enum4linux'] = enum4linux.Enum4Linux(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_enum4linux()
+
+        return {f"smb_{service_info['port']}": results}
+
     def analyze_generic_service(self, service_info):
         """Analyze generic/unknown services"""
-        print(f"Analyzing generic service {service_info['name']} on port {service_info['port']}")
+        printout(f"Analyzing generic service {service_info['name']} on port {service_info['port']}")
 
         #Check if service is in fact HTTP
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -191,7 +218,7 @@ class Dispatcher:
 
         # Check if response starts with HTTP
         if response.startswith(b"HTTP/"):
-            print(f"Service {service_info['name']} on port {service_info['port']} is HTTP")
+            printout(f"Service {service_info['name']} on port {service_info['port']} is HTTP")
             return self.analyze_web_service(service_info)
         else:
             results = {}

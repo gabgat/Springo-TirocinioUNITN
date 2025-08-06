@@ -7,7 +7,7 @@ class Hydra:
     def __init__(self, ip, port, service, tools_dir, timestamp):
         self.ip = ip
         self.port = port
-        self.url = f"{self.ip}:{self.port}"
+        self.url = f"hydra://{self.ip}:{self.port}"
         self.service = service
         self.timestamp = timestamp
         self.output_file = os.path.join(tools_dir, f"Hydra_{self.port}_{self.timestamp}.txt")
