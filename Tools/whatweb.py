@@ -13,5 +13,5 @@ class Watweb:
 
     def run_whatweb(self):
         """Run WhatWeb technology identification"""
-        cmd = f"whatweb {self.url} --log-json={self.output_file} --max-threads {self.threads}"
+        cmd = f"whatweb {self.url} --log-json {self.output_file} --max-threads 2"
         return execute_command(cmd, "WhatWeb", self.output_file, self.url)

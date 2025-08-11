@@ -12,7 +12,7 @@ class IPScanner:
         self.intensity = intensity
         self.nm = nmap.PortScanner()
         self.output_dir = output_dir
-        self.base_filename = f"namp_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        self.base_filename = f"nmap_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -44,46 +44,6 @@ class IPScanner:
         except Exception as e:
             printerr(f"Unexpected error validating IP: {str(e)}")
             return False
-
-    # def save_nmap_xml(self):
-    #     """Save nmap output in XML format"""
-    #     try:
-    #         xml_file = os.path.join(self.output_dir, f"{self.base_filename}.xml")
-    #         with open(xml_file, 'w') as f:
-    #             f.write(self.nm.get_nmap_last_output())
-    #         print(f"XML output saved to: {xml_file}")
-    #
-    #         return xml_file
-    #
-    #     except Exception as e:
-    #         print(f"Error saving nmap output: {e}")
-    #         return {}
-
-
-    # def save_nmap_json(self, scan_result):
-    #     """Save detailed JSON report for further processing"""
-    #     json_file = os.path.join(self.output_dir, f"{self.base_filename}.json")
-    #
-    #     report_data = {
-    #         "scan_info": {
-    #             "target": self.ip,
-    #             "intensity": self.intensity,
-    #             "nmap_version": self.nm.nmap_version(),
-    #             "scan_args": self.scan_configs[self.intensity]['args']
-    #         },
-    #         "results": scan_result.to_dict() if scan_result else None,
-    #         "raw_nmap_output": self.nm.get_nmap_last_output()
-    #     }
-    #
-    #     try:
-    #         with open(json_file, 'w') as f:
-    #             json.dump(report_data, f, indent=2)
-    #         print(f"JSON report saved to: {json_file}")
-    #         return json_file
-    #     except Exception as e:
-    #         print(f"Error saving JSON report: {e}")
-    #         return None
-
 
     def start_scan(self, ip, intensity):
         printout(f'Using Nmap versrion: {self.nm.nmap_version()}')

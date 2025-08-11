@@ -11,7 +11,7 @@ class AFTP:
         self.url = f"ftp://{self.ip}:{self.port}"
         self.tools_dir = tools_dir
         self.timestamp = timestamp
-        self.output_file = os.path.join(tools_dir, f"aftp_{self.port}_{self.timestamp}.txt")
+        self.output_file = os.path.join(tools_dir, f"aftp_{self.port}_{self.timestamp}.json")
         self.timeout = 5
 
     def run_anonym_ftp(self):

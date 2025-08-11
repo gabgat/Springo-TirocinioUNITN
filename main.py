@@ -132,7 +132,7 @@ def main():
 
         dispatcher = Dispatcher(args.ip, output_dir, args.max_threads)
 
-        vulnerability_results = dispatcher.analyze(scan_results.get('services', {}))
+        dispatcher.analyze(scan_results.get('services', {}))
 
         printout("Service analysis completed!")
 

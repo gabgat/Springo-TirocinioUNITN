@@ -12,7 +12,7 @@ class NSMB:
     def run_nsmb(self):
         args = f"-Pn --script=smb-* -p {self.port}"
         try:
-            printout(f"Starting SMB nmap scan at {self.timestamp}")
+            printout(f"Starting SMB nmap scan at {self.port}")
             self.nm.scan(hosts=self.ip, arguments=args)
 
             return self.nm.get_nmap_last_output()

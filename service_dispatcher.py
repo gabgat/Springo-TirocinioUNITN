@@ -14,7 +14,6 @@ class Dispatcher:
     def __init__(self, target_ip, output_dir, max_threads):
         self.target_ip = target_ip
         self.output_dir = output_dir
-        self.max_threads = 4
         self.timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         self.results = {}
         self.max_threads = max_threads
@@ -91,7 +90,7 @@ class Dispatcher:
 
         if protocol == 'https':
             base_url = f"https://{get_domain_from_ip(base_url)}"
-            printout(f"Extracted domain from IP: {base_url}")
+            printout(f"Extracted Domain {base_url} from IP: {self.target_ip}:{service_info['port']}")
             results['sslscan'] = sslscan.SSLScan(base_url, self.tools_dir, self.timestamp).run_sslscan()
 
         # Nikto scan

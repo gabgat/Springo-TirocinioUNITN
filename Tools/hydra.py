@@ -10,7 +10,7 @@ class Hydra:
         self.url = f"hydra://{self.ip}:{self.port}"
         self.service = service
         self.timestamp = timestamp
-        self.output_file = os.path.join(tools_dir, f"Hydra_{self.port}_{self.timestamp}.txt")
+        self.output_file = os.path.join(tools_dir, f"Hydra_{self.port}_{self.timestamp}.json")
 
         if self.service == "ssh" or self.service == "ftp":
             self.wordlist = "ssh-ftp-betterdefaultpasslist.txt"
@@ -23,5 +23,5 @@ class Hydra:
 
     def run_hydra(self):
         # Code to run Hydra
-        cmd = f"hydra -C {self.wordlist_path} -t 1 {self.ip} {self.service} -o {self.output_file}"
+        cmd = f"hydra -C {self.wordlist_path} -t 1 -s {self.port} {self.ip} {self.service} -o {self.output_file} -b json -I"
         return execute_command(cmd, "Hydra", self.output_file, self.url)

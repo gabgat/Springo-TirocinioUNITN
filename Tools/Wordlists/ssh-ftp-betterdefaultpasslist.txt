@@ -1,8 +1,3 @@
-########################################################################################
-# This list has been created merging ftp-betterdefaultpasslist.txt                     #
-# and ssh-betterdefaultpasslist.txt                                                    #
-# https://github.com/danielmiessler/SecLists/tree/master/Passwords/Default-Credentials #
-########################################################################################
 a:avery
 acitoolkit:acitoolkit
 admin:1111

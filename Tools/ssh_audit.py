@@ -9,7 +9,7 @@ class SSH_Audit:
         self.port = port
         self.url = f"ssh://{self.ip}:{self.port}"
         self.timestamp = timestamp
-        self.output_file = os.path.join(tools_dir, f"SSH_Audit_{self.port}_{self.timestamp}.txt")
+        self.output_file = os.path.join(tools_dir, f"ssh_audit_{self.port}_{self.timestamp}.json")
 
     def run_ssh_audit(self):
         # Code to run SSH audit

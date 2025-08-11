@@ -488,7 +488,7 @@ class Dig:
 
     def test_malformed_query(self):
         """Test with intentionally malformed query"""
-        cmd = f"dig @{self.ip} invalid..domain.com A"
+        cmd = f"dig @{self.ip} invalid.domain.com A"
         result = execute_command(cmd, "Dig Malformed", self.output_file, self.url)
 
         # Check for protocol issues

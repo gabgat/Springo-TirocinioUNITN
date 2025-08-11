@@ -1,9 +1,3 @@
-########################################################################################
-# This list has been created merging db2-betterdefaultpasslist.txt,                    #
-# mysql-betterdefaultpasslist.txt, postgres-betterdefaultpasslist.txt,                 #
-# mssql-betterdefaultpasslist.txt and oracle-betterdefaultpasslist.txt                 #
-# https://github.com/danielmiessler/SecLists/tree/master/Passwords/Default-Credentials #
-########################################################################################
 aaAdmin:pwAdmin
 aadbo:pwddbo
 aaPower:pwPower
