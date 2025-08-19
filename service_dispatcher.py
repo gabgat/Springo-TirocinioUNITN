@@ -5,7 +5,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp, enum4linux
-from Tools.Nmap import nmap_Ftp, nmap_Ssh, nmap_SMTP, nmap_SMB
+from Tools.Nmap import nmap_FTP, nmap_SSH, nmap_SMTP, nmap_SMB
 #from Tools import gobuster
 from ssl_domain_extractor import get_domain_from_ip
 from printer import printerr, printwarn, printout
@@ -119,7 +119,7 @@ class Dispatcher:
         #base_url = f"ssh://{self.target_ip}:{service_info['port']}"
 
         # Nmap SSH script
-        results['nmap_ssh'] = nmap_Ssh.NSSH(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nssh()
+        results['nmap_ssh'] = nmap_SSH.NSSH(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nssh()
 
         # SSH audit
         results['ssh_audit'] = ssh_audit.SSH_Audit(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_ssh_audit()
@@ -137,7 +137,7 @@ class Dispatcher:
         #base_url = f"ftp://{self.target_ip}:{service_info['port']}"
 
         #Nmap FTP script
-        results['nmap_ftp'] = nmap_Ftp.NFTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nftp()
+        results['nmap_ftp'] = nmap_FTP.NFTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nftp()
 
         # Hydra FTP brute force
         results['hydra_ftp'] = hydra.Hydra(self.target_ip, service_info['port'], "ftp", self.tools_dir, self.timestamp).run_hydra()

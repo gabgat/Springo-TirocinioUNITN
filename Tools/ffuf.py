@@ -54,7 +54,7 @@ class FFUF:
             ".txt",
             ".xml"
         ]
-        self.response = ["200", "204", "301", "302", "307", "401", "403"]
+        self.response = ["200", "204", "301", "302", "307", "401"]
         self.wordlist = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Wordlists", "big.txt")
         self.output_file = os.path.join(self.tools_dir, f"ffuf_{self.port}_{self.timestamp}.json")
 

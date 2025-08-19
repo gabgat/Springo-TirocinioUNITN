@@ -10,7 +10,7 @@ class Hydra:
         self.url = f"hydra://{self.ip}:{self.port}"
         self.service = service
         self.timestamp = timestamp
-        self.output_file = os.path.join(tools_dir, f"Hydra_{self.port}_{self.timestamp}.json")
+        self.output_file = os.path.join(tools_dir, f"hydra_{self.port}_{self.timestamp}.json")
 
         if self.service == "ssh" or self.service == "ftp":
             self.wordlist = "ssh-ftp-betterdefaultpasslist.txt"

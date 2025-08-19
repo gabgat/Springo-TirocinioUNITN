@@ -1,10 +1,12 @@
 import ipaddress
 import nmap
 import os
+import json
 
 from datetime import datetime
 from Tools.Nmap.nmap_ScanResult import ScanResult
 from printer import printerr, printwarn, printout
+
 
 class IPScanner:
     def __init__(self, ip, intensity, output_dir):
@@ -12,7 +14,7 @@ class IPScanner:
         self.intensity = intensity
         self.nm = nmap.PortScanner()
         self.output_dir = output_dir
-        self.base_filename = f"nmap_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        self.base_filename = f"nmap_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -45,14 +47,43 @@ class IPScanner:
             printerr(f"Unexpected error validating IP: {str(e)}")
             return False
 
-    def start_scan(self, ip, intensity):
-        printout(f'Using Nmap versrion: {self.nm.nmap_version()}')
-        printout(f'Scanning {ip} with intensity {intensity}')
-        #ports = self.scan_configs[intensity]['ports']
-        args = self.scan_configs[intensity]['args']
+    def save_json_result(self, scan_result):
+        """Save scan result to JSON file"""
         try:
-            printout(f"Starting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            #self.nm.scan(ip, ports, args)
+            json_filename = f"{self.base_filename}.json"
+            json_filepath = os.path.join(self.output_dir, json_filename)
+
+            # Create a comprehensive JSON structure
+            json_data = {
+                "scan_info": {
+                    "target_ip": self.ip,
+                    "scan_date": datetime.now().isoformat(),
+                    "intensity": self.intensity,
+                    "nmap_version": str(self.nm.nmap_version()),
+                    "scan_command": self.scan_configs[self.intensity]['args']
+                },
+                "scan_result": scan_result.to_dict()
+            }
+
+            with open(json_filepath, 'w', encoding='utf-8') as json_file:
+                json.dump(json_data, json_file, indent=2, ensure_ascii=False)
+
+            printout(f"NMAP JSON results saved to: {json_filepath}")
+            return json_filepath
+
+        except Exception as e:
+            printerr(f"Error saving NMAP JSON file: {e}")
+            return None
+
+    def start_scan(self, ip, intensity):
+        printout(f'Using Nmap version: {self.nm.nmap_version()}')
+        printout(f'Scanning {ip} with intensity {intensity}')
+        args = self.scan_configs[intensity]['args']
+
+        try:
+            scan_start_time = datetime.now()
+            printout(f"Starting scan at {scan_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
             self.nm.scan(hosts=ip, arguments=args)
 
             if not self.nm.all_hosts():
@@ -61,8 +92,6 @@ class IPScanner:
             if self.nm[ip].state() != 'up':
                 printwarn(f"Is the host at {ip} down?")
                 return None
-
-            #print(self.nm.get_nmap_last_output())
 
             # Estrai i dati dell'host
             host_data = self.nm[ip]
@@ -76,13 +105,19 @@ class IPScanner:
             # Estrai informazioni OS
             os_info = self.extract_os_info(host_data)
 
-            printout(f"Scan completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            scan_end_time = datetime.now()
+            scan_duration = scan_end_time - scan_start_time
 
-            #self.save_nmap_xml()
-            #self.save_nmap_json(ScanResult(ip, hostnames, open_ports, services, os_info))
+            printout(f"Scan completed at {scan_end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            printout(f"Scan duration: {scan_duration}")
 
-            return ScanResult(ip, hostnames, open_ports, services, os_info)
+            # Create scan result object
+            scan_result = ScanResult(ip, hostnames, open_ports, services, os_info)
 
+            # Save results to files
+            self.save_json_result(scan_result)
+
+            return scan_result
 
         except nmap.PortScannerError as e:
             printerr(f"Nmap error: {e}")
@@ -130,7 +165,8 @@ class IPScanner:
                         'version': port_info.get('version', ''),
                         'extrainfo': port_info.get('extrainfo', ''),
                         'state': port_info.get('state', ''),
-                        'reason': port_info.get('reason', '')
+                        'reason': port_info.get('reason', ''),
+                        'scripts': port_info.get('script', {})  # Include script results
                     }
 
         # Estrai porte UDP se presenti
@@ -152,7 +188,8 @@ class IPScanner:
                         'version': port_info.get('version', ''),
                         'extrainfo': port_info.get('extrainfo', ''),
                         'state': port_info.get('state', ''),
-                        'reason': port_info.get('reason', '')
+                        'reason': port_info.get('reason', ''),
+                        'scripts': port_info.get('script', {})  # Include script results
                     }
 
         return open_ports, services
@@ -198,15 +235,14 @@ class IPScanner:
         printout("Starting Scan Phase...")
         scan_result = self.start_scan(self.ip, self.intensity)
         printout("Scan finished")
+
         if scan_result:
             printout("------ Scan Results ------")
             for line in str(scan_result).splitlines():
                 printout(line)
             printout("---------------------------\n")
 
-            #print(scan_result.to_dict())
             return scan_result.to_dict()
-
         else:
             printerr("Scan failed or no results obtained.")
             return None

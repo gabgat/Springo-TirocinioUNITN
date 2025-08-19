@@ -8,6 +8,8 @@ from datetime import datetime
 
 from Tools.Nmap.nmap_Scanner import IPScanner
 from service_dispatcher import Dispatcher
+from results_parser import ResultParser
+from results_analyzer import ResultAnalyzer
 from printer import printerr, printwarn, printout, printsec
 
 
@@ -35,7 +37,6 @@ def check_required_tools():
     tools = [
         'nmap',
         'nikto',
-        'gobuster',
         'whatweb',
         'sslscan',
         'ffuf',
@@ -43,8 +44,7 @@ def check_required_tools():
         'ssh-audit',
         'wpscan',
         'dig',
-        'enum4linux-ng',
-        'sqlmap'
+        'enum4linux-ng'
     ]
 
     printsec("Checking required tools...")
@@ -52,7 +52,6 @@ def check_required_tools():
 
     for tool in tools:
         try:
-            # Using shutil.which() - simplest and most reliable method
             if shutil.which(tool) is not None:
                 printout(f"{tool} Found")
             else:
@@ -130,18 +129,33 @@ def main():
         #Service Analysis
         printsec("STAGE 2 - Service-specific Analysis...")
 
-        dispatcher = Dispatcher(args.ip, output_dir, args.max_threads)
-
-        dispatcher.analyze(scan_results.get('services', {}))
+        Dispatcher(args.ip, output_dir, args.max_threads).analyze(scan_results.get('services', {}))
 
         printout("Service analysis completed!")
 
-        printsec(" SCAN SUMMARY ")
+        #Results Analysis
+        printsec("STAGE 3 - Analyzing Results...")
+
+        printout("Loading results from files")
+        loaded_results = ResultParser(output_dir).start()
+        printout("Results loaded!")
+        printout("Selecting useful results")
+        results = ResultAnalyzer(loaded_results).start()
+        printout("Starting CVEs search")
+
+        printout("Results analysis completed!")
+
+        #Creating Summary
+        printsec("STAGE 4 - Creating Output Files...")
         printout(f"Target: {args.ip}")
         printout(f"Intensity Level: {args.intensity}")
         printout(f"Open Ports: {len(scan_results.get('open_ports', []))}")
         printout(f"Services Detected: {len(scan_results.get('services', {}))}")
         printout(f"Output Directory: {output_dir}")
+        printout("Creating report.txt...")
+
+        #End Message
+        printsec(f"SCAN FINISHED - Reports Saved At {output_dir}/reports/")
 
         # Display open ports and services
         if scan_results.get('open_ports'):

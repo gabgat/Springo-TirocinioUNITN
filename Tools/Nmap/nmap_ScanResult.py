@@ -1,5 +1,6 @@
+from datetime import datetime
+
 class ScanResult:
-    "Nmap scans results parsing"
 
     def __init__(self, ip_address, hostnames=None, open_ports=None, services=None, os_info=None):
         self.ip_address = ip_address
@@ -7,6 +8,7 @@ class ScanResult:
         self.open_ports = open_ports if open_ports is not None else []
         self.services = services if services is not None else {}  # {port: service_info}
         self.os_info = os_info if os_info is not None else {}
+        self.scan_timestamp = datetime.now().isoformat()
 
     def __str__(self):
         result_str = f"Scan Result for IP: {self.ip_address}\n"
@@ -59,5 +61,6 @@ class ScanResult:
             "hostnames": self.hostnames,
             "open_ports": self.open_ports,
             "services": self.services,
-            "os_info": self.os_info
+            "os_info": self.os_info,
+            "scan_timestamp": self.scan_timestamp
         }
