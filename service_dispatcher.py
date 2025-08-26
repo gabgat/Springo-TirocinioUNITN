@@ -5,7 +5,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp, enum4linux
-from Tools.Nmap import nmap_FTP, nmap_SSH, nmap_SMTP, nmap_SMB
+from Tools.Nmap import nmap_FTP, nmap_SSH, nmap_SMTP, nmap_SMB, nmap_HTTP
 #from Tools import gobuster
 from ssl_domain_extractor import get_domain_from_ip
 from printer import printerr, printwarn, printout
@@ -98,6 +98,9 @@ class Dispatcher:
 
         # Gobuster directory enumeration -> Will use FFUF
         #results['gobuster'] = gobuster.Gobuster(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_gobuster()
+
+        #Nmap HTTP script
+        results['nmap_http'] = nmap_HTTP.NHTTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nhttp()
 
         #FUFF direcory enumeration
         results['ffuf'] = ffuf.FFUF(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_ffuf()

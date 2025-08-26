@@ -15,7 +15,7 @@ def load(filename):
     except FileNotFoundError:
         printerr("Error: JSON file not found")
     except json.JSONDecodeError:
-        printerr("Error: Invalid JSON format")
+        printerr("Error: Invalid JSON format (the file could be empty)")
     except Exception as e:
         printerr(f"An unexpected error occurred: {e}")
 
@@ -23,7 +23,7 @@ def load(filename):
 class ResultParser:
     def __init__(self, output_dir):
         self.results = {}
-        self.tools_dir = f"{output_dir}/tools"
+        self.tools_dir = os.path.join(output_dir, "tools")
 
     def start(self):
         try:

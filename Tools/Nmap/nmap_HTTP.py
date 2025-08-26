@@ -4,15 +4,15 @@ import os
 from nmap import nmap
 from printer import printerr, printout
 
-class NSMTP:
+class NHTTP:
     def __init__(self, ip, port, tools_dir, timestamp):
         self.ip = ip
         self.port = port
         self.tools_dir = tools_dir
         self.timestamp = timestamp
         self.nm = nmap.PortScanner()
-        self.args = f'-Pn --script=smtp-* --script-args="smtp-vuln-cve2010-4344.exploit" -p {self.port}'
-        self.output_file = os.path.join(self.tools_dir, f"nsmtp_{self.port}_{self.timestamp}.json")
+        self.args = f'-Pn --script=http-* -p {self.port}'
+        self.output_file = os.path.join(self.tools_dir, f"nhttp_{self.port}_{self.timestamp}.json")
 
     def save_json_result(self, raw_output):
         try:
@@ -23,7 +23,7 @@ class NSMTP:
                     "scan_date": self.timestamp,
                     "nmap_version": str(self.nm.nmap_version()),
                     "scan_command": self.args,
-                    "scan_type": "SMTP"
+                    "scan_type": "HTTP"
                 },
                 "scan_result": {
                     "raw_output": raw_output
@@ -33,7 +33,7 @@ class NSMTP:
             with open(self.output_file, 'w', encoding='utf-8') as json_file:
                 json.dump(json_data, json_file, indent=2, ensure_ascii=False)
 
-            printout(f"NSMTP JSON results saved to: {self.output_file}")
+            printout(f"NHTTP JSON results saved to: {self.output_file}")
 
             return json_data
 
@@ -41,9 +41,9 @@ class NSMTP:
             printerr(f"Error saving JSON file: {e}")
             return None
 
-    def run_nsmtp(self):
+    def run_nhttp(self):
         try:
-            printout(f"Starting SMTP nmap scan at {self.port}")
+            printout(f"Starting HTTP nmap scan at {self.port}")
             raw_output = self.nm.scan(hosts=self.ip, arguments=self.args)
 
             # Save JSON result
@@ -58,8 +58,8 @@ class NSMTP:
             return None
         except KeyError as e:
             printerr(f"Key error accessing scan results: {e}")
-            printerr("This might indicate the SMTP host is not responding or the scan failed.")
+            printerr("This might indicate the HTTP host is not responding or the scan failed.")
             return None
         except Exception as e:
-            printerr(f"Unexpected error during SMTP nmap scan: {e}")
+            printerr(f"Unexpected error during HTTP nmap scan: {e}")
             return None

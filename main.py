@@ -7,15 +7,16 @@ import os
 from datetime import datetime
 
 from Tools.Nmap.nmap_Scanner import IPScanner
+from cve_analyzer import CVEChecker
 from service_dispatcher import Dispatcher
 from results_parser import ResultParser
 from results_analyzer import ResultAnalyzer
+from results_txt_printer import PrintTXT
 from printer import printerr, printwarn, printout, printsec
 
 
-def setup_output_directory(target_ip):
+def setup_output_directory(target_ip, timestamp):
     """Create organized output directory structure"""
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     base_dir = f"scan_{target_ip}_{timestamp}"
 
     dirs_to_create = [
@@ -47,7 +48,7 @@ def check_required_tools():
         'enum4linux-ng'
     ]
 
-    printsec("Checking required tools...")
+    printsec("Stage 0 - Checking required tools...")
     missing_tools = []
 
     for tool in tools:
@@ -72,6 +73,7 @@ def check_required_tools():
 
 
 def main():
+    start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
     parser = argparse.ArgumentParser(
         description="Enhanced Automatic vulnerability Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -108,7 +110,7 @@ def main():
             os.makedirs(output_dir)
     else:
         printout("Setting up auto-generated output directory")
-        output_dir = setup_output_directory(args.ip)
+        output_dir = setup_output_directory(args.ip, start_time)
 
     printout(f"Using output directory: {output_dir}")
 
@@ -142,7 +144,7 @@ def main():
         printout("Selecting useful results")
         results = ResultAnalyzer(loaded_results).start()
         printout("Starting CVEs search")
-
+        cves = None#CVEChecker(output_dir).analyze_scan_results(results)
         printout("Results analysis completed!")
 
         #Creating Summary
@@ -152,29 +154,14 @@ def main():
         printout(f"Open Ports: {len(scan_results.get('open_ports', []))}")
         printout(f"Services Detected: {len(scan_results.get('services', {}))}")
         printout(f"Output Directory: {output_dir}")
-        printout("Creating report.txt...")
+        end_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+        printout(f"Script finished at {end_time}")
+        printout(f"Generating text report at {output_dir}/reports/report.txt...")
+        PrintTXT(output_dir, results, cves, start_time, end_time).print_results()
 
         #End Message
-        printsec(f"SCAN FINISHED - Reports Saved At {output_dir}/reports/")
-
-        # Display open ports and services
-        if scan_results.get('open_ports'):
-            printsec("OPEN PORTS:")
-            for port in scan_results['open_ports']:
-                protocol = scan_results.get('services', {}).get(port, {}).get('protocol', 'unknown')
-                service_info = scan_results.get('services', {}).get(port, {})
-                service_name = service_info.get('name', 'unknown')
-                product = service_info.get('product', '')
-                version = service_info.get('version', '')
-
-                service_str = service_name
-                if product and product != 'N/A':
-                    service_str += f" ({product}"
-                    if version and version != 'N/A':
-                        service_str += f" {version}"
-                    service_str += ")"
-
-                printout(f"{port}/{protocol} - {service_str}")
+        printsec(f"!!SCAN FINISHED!!")
+        printout(f"Reports Saved At {output_dir}/reports/")
 
     except KeyboardInterrupt:
         printerr("Scan interrupted by user")
