@@ -30,7 +30,7 @@ class ResultParser:
             files = [f for f in os.listdir(self.tools_dir) if f.endswith('.json')]
         except OSError as e:
             printerr(f"Error reading directory {self.tools_dir}: {e}")
-            return
+            return None
 
         for file in files:
             printout(f"Loading {file}")

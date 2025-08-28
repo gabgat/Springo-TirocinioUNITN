@@ -17,7 +17,7 @@ class ScanResult:
         if self.services:
             # Get all open ports from services (they should match open_ports)
             open_ports = sorted(self.services.keys())
-            result_str += f"Porte Aperte: {', '.join(map(str, open_ports))}\n"
+            result_str += f"Open Ports: {', '.join(map(str, open_ports))}\n"
 
             for port in open_ports:
                 service_info = self.services[port]  # Direct access since we know it exists
@@ -27,7 +27,7 @@ class ScanResult:
                 version = service_info.get('version', '')
                 extrainfo = service_info.get('extrainfo', '')
 
-                # Costruisci la stringa del servizio
+                # Build service string
                 service_str = service_name
                 if product and product != 'N/A':
                     service_str += f" {product}"
@@ -39,7 +39,7 @@ class ScanResult:
                 result_str += f"{port:<9} open  {service_str}\n"
         elif self.open_ports:
             # Fallback to open_ports if services is empty
-            result_str += f"Porte Aperte: {', '.join(map(str, self.open_ports))}\n"
+            result_str += f"Open Ports: {', '.join(map(str, self.open_ports))}\n"
             for port in self.open_ports:
                 result_str += f"{port:<9} open  unknown\n"
 
@@ -55,7 +55,6 @@ class ScanResult:
         return result_str
 
     def to_dict(self):
-        """Convert ScanResult object to dictionary."""
         return {
             "ip_address": self.ip_address,
             "hostnames": self.hostnames,

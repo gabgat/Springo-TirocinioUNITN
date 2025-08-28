@@ -2,7 +2,6 @@ import os
 import re
 
 from execute_command import execute_command
-from printer import printerr, printwarn, printout
 
 class Gobuster:
     def __init__(self, url, port, tools_dir, timestamp, threads):

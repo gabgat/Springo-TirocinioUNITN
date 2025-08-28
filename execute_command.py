@@ -48,6 +48,9 @@ def execute_command(command, tool_name, output_file, url):
             printout(f"{tool_name} for {url} completed successfully. Website is vulnerable")
             result["status"] = "completed"
             result["success"] = True
+        elif tool_name.startswith("Dig ") and process.returncode == 9:
+            result["status"] = "completed"
+            result["success"] = False
         else:
             printwarn(f"{tool_name} for {url} failed with return code {process.returncode}")
             result["status"] = "failed"

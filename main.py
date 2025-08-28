@@ -17,7 +17,7 @@ from printer import printerr, printwarn, printout, printsec
 
 def setup_output_directory(target_ip, timestamp):
     """Create organized output directory structure"""
-    base_dir = f"scan_{target_ip}_{timestamp}"
+    base_dir = os.path.join(os.getenv('OUTPUT_DIR', './outputs'), f"scan_{target_ip}_{timestamp}")
 
     dirs_to_create = [
         base_dir,
@@ -85,9 +85,9 @@ def main():
       3 - Stealth scan (slow, comprehensive, evasive)
 
     Examples:
-      %(prog)s 192.168.1.100 1                    # Normal scan
-      %(prog)s 10.0.0.1 2 --skip-tools            # Advanced scan, skip additional tools
-      %(prog)s 172.16.0.1 3 --tools-only nikto,dirb  # Stealth scan, only run specified tools
+      %(prog)s 192.168.1.100 1                 # Normal scan
+      %(prog)s 10.0.0.1 2 -t 80                # Advanced scan, 80 threads
+      %(prog)s 10.0.0.1 2 -t 80 -o /output_dir # Advanced scan, 80 threads, custom output directory
             """
     )
     parser.add_argument("ip", help="The IP address of the target machine")

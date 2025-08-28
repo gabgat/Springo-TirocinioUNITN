@@ -30,10 +30,10 @@ class PrintTXT:
         title = """
 .-------------------------------------------------------------------.
 | ____   ____    _    _   _      ____  _____ ____   ___  ____ _____ |
-|/ ___| / ___|  / \\  | \\ | |    |  _ \| ____|  _ \\ / _ \|  _ \_   _||
-|\___ \| |     / _ \\ |  \| |    | |_) |  _| | |_) | | | | |_) || |  |
-| ___) | |___ / ___ \| |\\  |    |  _ <| |___|  __/| |_| |  _ < | |  |
-||____/ \____/_/   \_\_| \_|    |_| \_\_____|_|    \___/|_| \_\|_|  |
+|/ ___| / ___|  / \\  | \\ | |    |  _ \\| ____|  _ \\ / _ \\|  _ \\_   _||
+|\\___ \\| |     / _ \\ |  \\| |    | |_) |  _| | |_) | | | | |_) || |  |
+| ___) | |___ / ___ \\| |\\  |    |  _ <| |___|  __/| |_| |  _ < | |  |
+||____/ \\____/_/   \\_\\_| \\_|    |_| \\_\\_____|_|    \\___/|_| \\_\\|_|  |
 '-------------------------------------------------------------------'
 """
 
@@ -115,7 +115,8 @@ Total Time: {self.total_time}
             self.output += "No CVEs found"
 
 
-    def ftp_info(self, port, data):
+    @staticmethod
+    def ftp_info(port, data):
         title = f"""FTP (Port {port})"""
         product = data.get("nftp", {}).get("product")
         version = data.get("nftp", {}).get("version")
@@ -146,7 +147,8 @@ Total Time: {self.total_time}
   CVE-2010-1938: {vuln_cve2010_1938}
 """
 
-    def ssh_info(self, port, data):
+    @staticmethod
+    def ssh_info(port, data):
         title = f"""SSH (Port {port})"""
         product = data.get("nssh", {}).get("product")
         version = data.get("nssh", {}).get("version")
@@ -182,7 +184,8 @@ Total Time: {self.total_time}
   Weak Algorithms: 
 {algorithms}"""
 
-    def smtp_info(self, port, data):
+    @staticmethod
+    def smtp_info(port, data):
         title = f"""SMTP (Port {port})"""
         product = data.get("nsmtp", {}).get("product")
         version = data.get("nsmtp", {}).get("version")
@@ -208,7 +211,8 @@ Total Time: {self.total_time}
   CVE-2010-4344: {vuln_cve2010_4344}
   """
 
-    def dns_info(self, port, data):
+    @staticmethod
+    def dns_info(port, data):
         title = f"""DNS (Port {port})"""
 
         information_disclosure = False
@@ -232,7 +236,8 @@ Total Time: {self.total_time}
   Amplification: {amplification}
   """
 
-    def smb_info(self, port, data):
+    @staticmethod
+    def smb_info(port, data):
         title = f"""SMB (Port {port})"""
         product = data.get("nsmb", {}).get("product")
         version = data.get("nsmb", {}).get("version")
@@ -241,7 +246,7 @@ Total Time: {self.total_time}
         vuln_regsvc_dos = data.get("nsmb", {}).get("vulnerabilities", {}).get("smb-vuln-regsvc-dos")
         vuln_ms10_061 = data.get("nsmb", {}).get("vulnerabilities", {}).get("smb-vuln-ms10-061")
         users = ""
-        pass_lenght = data.get("enum4linux", {}).get("policy", {}).get("password_lenght") if data.get("enum4linux", {}).get("policy", {}).get("password_lenght") else "Unknown"
+        pass_length = data.get("enum4linux", {}).get("policy", {}).get("min_password_length") if data.get("enum4linux", {}).get("policy", {}).get("min_password_length") else "Unknown"
         pass_complex = data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_COMPLEX") if data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_COMPLEX") else "Unknown"
         pass_cleartext = data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT") if data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT") else "False"
 
@@ -263,12 +268,13 @@ Total Time: {self.total_time}
   Vulnerable To MS10-061: {vuln_ms10_061}
   Users: 
 {users}
-  Min Password Lenght Required: {pass_lenght}
+  Min Password Length Required: {pass_length}
   Password Complexity Required: {pass_complex}
   Password Stored In Cleartext: {pass_cleartext}
   """
 
-    def http_info(self, port, data):
+    @staticmethod
+    def http_info(port, data):
         title = f"""HTTP (Port {port})"""
         website_title = data.get("nhttp", {}).get("http-title")
         git_url = data.get("nhttp", {}).get("http-git", {}).get("url")
@@ -330,7 +336,8 @@ Total Time: {self.total_time}
 {paths}
   """
 
-    def ssl_info(self, data):
+    @staticmethod
+    def ssl_info(data):
         protocols = data.get("sslscan", {}).get("protocols")
         ciphers_weak = data.get("sslscan", {}).get("ciphers", {}).get("weak")
         ciphers_insecure = data.get("sslscan", {}).get("ciphers", {}).get("insecure")
@@ -346,7 +353,8 @@ Total Time: {self.total_time}
   Certificate Short Key: {cert_short_key}
   """
 
-    def wpscan_info(self, data):
+    @staticmethod
+    def wpscan_info(data):
         version = data.get("version")
         release = data.get("release")
         secure = data.get("secure")

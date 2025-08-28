@@ -3,7 +3,7 @@ import os
 from execute_command import execute_command
 
 
-class SSH_Audit:
+class SSHAudit:
     def __init__(self, ip, port, tools_dir, timestamp):
         self.ip = ip
         self.port = port

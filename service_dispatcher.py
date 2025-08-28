@@ -1,10 +1,9 @@
 import os
 import socket
-import subprocess
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from Tools import nikto, wpscan, whatweb, sslscan, ffuf, ssh_audit, hydra, dig, anonym_ftp, enum4linux
+from Tools import nikto, wpscan, whatweb, sslscan, ffuf, sshaudit, hydra, dig, anonym_ftp, enum4linux
 from Tools.Nmap import nmap_FTP, nmap_SSH, nmap_SMTP, nmap_SMB, nmap_HTTP
 #from Tools import gobuster
 from ssl_domain_extractor import get_domain_from_ip
@@ -95,11 +94,11 @@ class Dispatcher:
         #Nmap HTTP script
         results['nmap_http'] = nmap_HTTP.NHTTP(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nhttp()
 
-        #FUFF direcory enumeration
+        #FUFF directory enumeration
         results['ffuf'] = ffuf.FFUF(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_ffuf()
 
         # Whatweb technology identification
-        results['whatweb'] = whatweb.Watweb(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_whatweb()
+        results['whatweb'] = whatweb.Whatweb(base_url, service_info['port'], self.tools_dir, self.timestamp, self.max_threads).run_whatweb()
 
         #WPScan vulnerability scanner
         results['wpscan'] = wpscan.WPScan(base_url, service_info['port'], self.tools_dir, self.timestamp).run_wpscan()
@@ -118,7 +117,7 @@ class Dispatcher:
         results['nmap_ssh'] = nmap_SSH.NSSH(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_nssh()
 
         # SSH audit
-        results['ssh_audit'] = ssh_audit.SSH_Audit(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_ssh_audit()
+        results['ssh_audit'] = sshaudit.SSHAudit(self.target_ip, service_info['port'], self.tools_dir, self.timestamp).run_ssh_audit()
 
         # Hydra brute force (with common usernames)
         results['hydra_ssh'] = hydra.Hydra(self.target_ip, service_info['port'], "ssh", self.tools_dir, self.timestamp).run_hydra()

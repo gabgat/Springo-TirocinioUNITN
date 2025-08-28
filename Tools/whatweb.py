@@ -2,7 +2,7 @@ import os
 
 from execute_command import execute_command
 
-class Watweb:
+class Whatweb:
     def __init__(self, url, port, tools_dir, timestamp, threads):
         self.url = url
         self.port = port

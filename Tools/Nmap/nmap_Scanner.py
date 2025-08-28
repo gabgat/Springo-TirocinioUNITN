@@ -93,16 +93,16 @@ class IPScanner:
                 printwarn(f"Is the host at {ip} down?")
                 return None
 
-            # Estrai i dati dell'host
+            # Extract host data
             host_data = self.nm[ip]
 
-            # Estrai hostnames
+            # Extract hostnames
             hostnames = self.extract_hostnames(host_data)
 
-            # Estrai porte aperte e servizi (TCP e UDP)
+            # Extract open ports and services
             open_ports, services = self.extract_ports_and_services(host_data)
 
-            # Estrai informazioni OS
+            # Extract OS info
             os_info = self.extract_os_info(host_data)
 
             scan_end_time = datetime.now()
@@ -146,7 +146,7 @@ class IPScanner:
         open_ports = []
         services = {}
 
-        # Estrai porte TCP
+        # Extract TCP ports
         if 'tcp' in host_data:
             for port in host_data['tcp']:
                 port_info = host_data['tcp'][port]
@@ -169,7 +169,7 @@ class IPScanner:
                         'scripts': port_info.get('script', {})  # Include script results
                     }
 
-        # Estrai porte UDP se presenti
+        # Extract UDP ports
         if 'udp' in host_data:
             for port in host_data['udp']:
                 port_info = host_data['udp'][port]
@@ -196,20 +196,18 @@ class IPScanner:
 
     @staticmethod
     def extract_os_info(host_data):
-        """Extract OS information with better parsing"""
         os_info = {}
 
-        # Informazioni di base dell'host
+        # Host addresses
         if 'addresses' in host_data:
             os_info['addresses'] = host_data['addresses']
 
         # OS Detection
         if 'osmatch' in host_data and host_data['osmatch']:
-            best_match = host_data['osmatch'][0]  # Il primo è solitamente il migliore
+            best_match = host_data['osmatch'][0]
             os_info['name'] = best_match.get('name', 'Unknown')
             os_info['accuracy'] = f"{best_match.get('accuracy', 0)}%"
 
-            # Estrai osclass information
             if 'osclass' in best_match and best_match['osclass']:
                 osclass = best_match['osclass'][0]
                 os_info['osfamily'] = osclass.get('osfamily', 'Unknown')
@@ -219,7 +217,7 @@ class IPScanner:
                 if 'cpe' in osclass:
                     os_info['cpe'] = osclass['cpe']
 
-        # Uptime se disponibile
+        # Uptime
         if 'uptime' in host_data:
             uptime_info = host_data['uptime']
             if 'lastboot' in uptime_info:
