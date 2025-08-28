@@ -29,7 +29,8 @@ class CVEChecker:
         self.stats = {'products_found': 0, 'api_requests': 0, 'cves_found': 0, 'cves_filtered': 0, 'cvss_medium': 0.0,
                       'errors': 0}
 
-    def normalize_version(self, v):
+    @staticmethod
+    def normalize_version(v):
         if not v or not str(v).strip():
             return None
         clean = re.sub(r'^[vV]|p\d+$|[-+].*$', '', str(v).strip())
@@ -84,19 +85,13 @@ class CVEChecker:
     def extract_products(self, scan_results):
         products = set()
 
-        print(f"DEBUG: Scan results structure: {list(scan_results.keys())}")  # Debug
-
         for port, port_data in scan_results.items():
             if not isinstance(port_data, dict):
                 continue
 
-            print(f"DEBUG: Port {port} tools: {list(port_data.keys())}")  # Debug
-
             for tool, data in port_data.items():
                 if not isinstance(data, dict):
                     continue
-
-                print(f"DEBUG: Tool {tool} data keys: {list(data.keys())}")  # Debug
 
                 try:
                     # WhatWeb extraction - check for web servers
@@ -111,7 +106,7 @@ class CVEChecker:
                                 for v in versions:
                                     if v and str(v).strip():
                                         products.add((vendor_map[server], product_map[server], str(v).strip()))
-                                        print(f"DEBUG: Found {server} {v}")
+                                        printout(f" Found {server} {v}")
 
                         # Check HTTPServer field
                         if 'HTTPServer' in data and 'string' in data['HTTPServer']:
@@ -123,13 +118,52 @@ class CVEChecker:
                                 match = re.search(r'Apache/([0-9.]+)', string)
                                 if match:
                                     products.add(('apache', 'http_server', match.group(1)))
-                                    print(f"DEBUG: Found Apache {match.group(1)} from HTTPServer")
 
                                 # Nginx detection
                                 match = re.search(r'nginx/([0-9.]+)', string)
                                 if match:
                                     products.add(('nginx', 'nginx', match.group(1)))
-                                    print(f"DEBUG: Found Nginx {match.group(1)} from HTTPServer")
+
+                        # Check X-Powered-By field for additional technologies
+                        if 'X-Powered-By' in data and 'string' in data['X-Powered-By']:
+                            powered_by = data['X-Powered-By']['string']
+                            powered_by_list = powered_by if isinstance(powered_by, list) else [powered_by]
+
+                            for pb_string in powered_by_list:
+                                pb_lower = str(pb_string).lower()
+
+                                # PHP detection
+                                match = re.search(r'php/([0-9.]+)', pb_lower)
+                                if match:
+                                    products.add(('php', 'php', match.group(1)))
+                                    printout(f" Found PHP {match.group(1)} from X-Powered-By")
+
+                                # ASP.NET detection
+                                match = re.search(r'asp\.net', pb_lower)
+                                if match:
+                                    # Try to extract version if present
+                                    version_match = re.search(r'asp\.net\D*([0-9.]+)', pb_lower)
+                                    if version_match:
+                                        products.add(('microsoft', 'asp.net', version_match.group(1)))
+                                    else:
+                                        products.add(('microsoft', 'asp.net', 'unknown'))
+                                    printout(f" Found ASP.NET from X-Powered-By")
+
+                                # Express.js detection
+                                match = re.search(r'express', pb_lower)
+                                if match:
+                                    products.add(('expressjs', 'express', 'unknown'))
+                                    printout(f" Found Express.js from X-Powered-By")
+
+                                # General framework detection - look for version patterns
+                                if not any(tech in pb_lower for tech in ['php', 'asp.net', 'express']):
+                                    # Try to extract any technology with version pattern
+                                    general_match = re.search(r'([a-zA-Z][a-zA-Z0-9-_.]*)/([0-9.]+)', pb_string)
+                                    if general_match:
+                                        tech_name = general_match.group(1).lower()
+                                        tech_version = general_match.group(2)
+                                        products.add((tech_name, tech_name, tech_version))
+                                        printout(f" Found {tech_name} {tech_version} from X-Powered-By")
 
                     # Nmap service detection
                     if 'nmap' in tool.lower():
@@ -158,7 +192,7 @@ class CVEChecker:
                         if ver:
                             if 'apache' in product:
                                 products.add(('apache', 'http_server', ver))
-                                print(f"DEBUG: Found Apache {ver} from direct detection")
+                                printout(f" Found Apache {ver} from direct detection")
                             elif 'nginx' in product:
                                 products.add(('nginx', 'nginx', ver))
                             elif 'openssh' in product or 'ssh' in product:
@@ -185,10 +219,9 @@ class CVEChecker:
                             products.add(('wordpress', 'wordpress', str(data['version'])))
 
                 except Exception as e:
-                    print(f"DEBUG: Error extracting from {tool}: {e}")
+                    printerr(f" Error extracting from {tool}: {e}")
                     self.stats['errors'] += 1
 
-        print(f"DEBUG: Extracted products: {products}")  # Debug
         self.stats['products_found'] = len(products)
         return list(products)
 
@@ -343,7 +376,4 @@ class CVEChecker:
             json.dump(results, f, indent=2, ensure_ascii=False)
 
         printout(f"Found {len(all_cves)} relevant CVEs, filtered {self.stats['cves_filtered']}")
-        return all_cves
-
-    def get_statistics(self):
-        return self.stats.copy()
+        return results

@@ -25,13 +25,6 @@ class Dispatcher:
 
     def analyze(self, services_dict):
 
-        # Update WPScan Database
-        try:
-            printout("Updating WPScan DB...")
-            subprocess.run(["wpscan", "--update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        except subprocess.CalledProcessError:
-            printerr("WPScan DB update failed.")
-
         if not services_dict:
             printwarn("No services to analyze")
             return None

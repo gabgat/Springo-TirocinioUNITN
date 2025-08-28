@@ -30,8 +30,8 @@ class AFTP:
             ftp.quit()
 
         except error_perm as e:
-            printerr(f"Anonymous login denied on {self.url} ({e})")
-            return False
+            printout(f"Anonymous login denied on {self.url} ({e})")
+            return result
         except Exception as e:
             printerr(f"Error connecting to {self.url} ({e})")
             return False

@@ -73,7 +73,7 @@ def check_required_tools():
 
 
 def main():
-    start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    start_time = datetime.now()
     parser = argparse.ArgumentParser(
         description="Enhanced Automatic vulnerability Scanner",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -110,7 +110,7 @@ def main():
             os.makedirs(output_dir)
     else:
         printout("Setting up auto-generated output directory")
-        output_dir = setup_output_directory(args.ip, start_time)
+        output_dir = setup_output_directory(args.ip, start_time.strftime('%Y%m%d_%H%M%S'))
 
     printout(f"Using output directory: {output_dir}")
 
@@ -144,7 +144,7 @@ def main():
         printout("Selecting useful results")
         results = ResultAnalyzer(loaded_results).start()
         printout("Starting CVEs search")
-        cves = None#CVEChecker(output_dir).analyze_scan_results(results)
+        cves = CVEChecker(output_dir).analyze_scan_results(results)
         printout("Results analysis completed!")
 
         #Creating Summary
@@ -154,8 +154,8 @@ def main():
         printout(f"Open Ports: {len(scan_results.get('open_ports', []))}")
         printout(f"Services Detected: {len(scan_results.get('services', {}))}")
         printout(f"Output Directory: {output_dir}")
-        end_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-        printout(f"Script finished at {end_time}")
+        end_time = datetime.now()
+        printout(f"Script finished at {end_time.strftime('%Y%m%d_%H%M%S')}")
         printout(f"Generating text report at {output_dir}/reports/report.txt...")
         PrintTXT(output_dir, results, cves, start_time, end_time).print_results()
 

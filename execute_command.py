@@ -24,6 +24,7 @@ def execute_command(command, tool_name, output_file, url):
         result = {
             "tool": tool_name,
             "command": command,
+            "status": "completed",
             "output_file": output_file,
             "return_code": process.returncode,
             "timestamp": datetime.now().isoformat(),
@@ -34,12 +35,19 @@ def execute_command(command, tool_name, output_file, url):
         if process.returncode == 0:
             printout(f"{tool_name} for {url} completed successfully")
             result["status"] = "completed"
+            result["success"] = True
         elif tool_name == "Nikto" and process.returncode == 1:
             printout(f"{tool_name} for {url} completed successfully (vulnerabilities found)")
             result["status"] = "completed"
+            result["success"] = True
         elif tool_name == "SSH Audit" and process.returncode == 3:
             printout(f"{tool_name} for {url} completed successfully")
             result["status"] = "completed"
+            result["success"] = True
+        elif tool_name == "Wpscan" and process.returncode == 5:
+            printout(f"{tool_name} for {url} completed successfully. Website is vulnerable")
+            result["status"] = "completed"
+            result["success"] = True
         else:
             printwarn(f"{tool_name} for {url} failed with return code {process.returncode}")
             result["status"] = "failed"

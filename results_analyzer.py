@@ -156,44 +156,86 @@ def get_useful_info(tool, content, port):
             }
 
     elif tool == 'wpscan':
+        info_list[port][tool] = {}
+
         if content.get('version'):
-            info_list[port][f"{tool}_version"] = {
-                'version': content.get('version')
+            version_data = content.get('version')
+            info_list[port][tool]["version"] = version_data.get('number')
+            info_list[port][tool]["release"] = version_data.get('release_date')
+            info_list[port][tool]["secure"] = version_data.get('status') == 'secure'
+            info_list[port][tool]["vulnerabilities"] = []
+
+            if version_data.get('vulnerabilities'):
+                for vuln in version_data.get('vulnerabilities', []):
+                    info_list[port][tool]["vulnerabilities"].append({
+                        "title": vuln.get('title'),
+                        "cve": vuln.get('references', {}).get('cve', [''])[0]
+                    })
+
+        if content.get('interesting_findings'):
+            info_list[port][tool]["interesting_findings"] = []
+
+            for item in content.get('interesting_findings', []):
+                info_list[port][tool]["interesting_findings"].append(item.get('url'))
+
+        if content.get('plugins'):
+            info_list[port][tool]["plugins"] = {}
+
+            for plugin_slug, plugin_data in content.get('plugins', {}).items():
+                info_list[port][tool]["plugins"][plugin_slug] = {
+                    "version": plugin_data.get('version', {}).get('number') if plugin_data.get('version') else None,
+                    "latest_version": plugin_data.get('latest_version'),
+                    "outdated": plugin_data.get('outdated'),
+                    "vulnerabilities": []
+                }
+
+                if plugin_data.get("vulnerabilities"):
+                    for vuln in plugin_data.get("vulnerabilities", []):
+                        info_list[port][tool]["plugins"][plugin_slug]["vulnerabilities"].append({
+                            "title": vuln.get('title'),
+                            "cve": vuln.get('references', {}).get('cve', [''])[0]
+                        })
+
+        if content.get('main_theme'):
+            theme_data = content.get('main_theme')
+
+            info_list[port][tool]["main_theme"] = {
+                "name": theme_data.get('style_name'),
+                "version": theme_data.get('version', {}).get('number') if theme_data.get('version') else None,
+                "latest_version": theme_data.get('latest_version'),
+                "outdated": theme_data.get('outdated'),
+                "vulnerabilities": []
             }
 
-        if content.get('vulnerable_plugins'):
-            plugins_dict = {}
-            for plugin in content.get('vulnerable_plugins', []):
-                plugin_name = plugin.get('name', 'unknown')
-                plugins_dict[plugin_name] = {
-                    'version': plugin.get('version'),
-                    'cves': plugin.get('cves')
-                }
-
-            if plugins_dict:
-                info_list[port][f"{tool}_plugins"] = plugins_dict
-
-        if content.get('vulnerable_themes'):
-            themes_dict = {}
-            for theme in content.get('vulnerable_themes', []):
-                theme_name = theme.get('name', 'unknown')
-                themes_dict[theme_name] = {
-                    'version': theme.get('version'),
-                    'cves': theme.get('cves')
-                }
-
-            if themes_dict:
-                info_list[port][f"{tool}_themes"] = themes_dict
+            if theme_data.get("vulnerabilities"):
+                for vuln in theme_data.get("vulnerabilities", []):
+                    info_list[port][tool]["main_theme"]["vulnerabilities"].append({
+                        "title": vuln.get('title'),
+                        "cve": vuln.get('references', {}).get('cve', [''])[0]
+                    })
 
         if content.get('users'):
-            info_list[port][f"{tool}_users"] = {
-                'users': content.get('users')
-            }
+            info_list[port][tool]["users"] = []
+            for username, data in content.get('users', {}).items():
+                info_list[port][tool]["users"].append(username)
 
-        if content.get('default_creds'):
-            info_list[port][f"{tool}_default_creds"] = {
-                'default_creds': content.get('default_creds')
-            }
+        if content.get('themes'):
+            info_list[port][tool]["themes"] = {}
+            for theme_slug, theme_data in content.get('themes', {}).items():
+                info_list[port][tool]["themes"][theme_slug] = {
+                    "version": theme_data.get('version', {}).get('number') if theme_data.get('version') else None,
+                    "latest_version": theme_data.get('latest_version'),
+                    "outdated": theme_data.get('outdated'),
+                    "vulnerabilities": []
+                }
+
+                if theme_data.get("vulnerabilities"):
+                    for vuln in theme_data.get("vulnerabilities", []):
+                        info_list[port][tool]["themes"][theme_slug]["vulnerabilities"].append({
+                            "title": vuln.get('title'),
+                            "cve": vuln.get('references', {}).get('cve', [''])[0]
+                        })
+
 
     elif tool == 'nftp' and content.get('scan_result'):
         host_data = content['scan_result']['raw_output']['scan']
@@ -444,7 +486,7 @@ class ResultAnalyzer:
     def start(self):
         for tool, content in self.input_dict.items():
             for port, data in content.items():
-                if tool in ['dig', 'wpscan', 'smtp_user_enum']:
+                if tool in ['dig', 'smtp_user_enum']:
                     if not isinstance(data, list):
                         data = [data] if data else []
                 else:
@@ -464,5 +506,4 @@ class ResultAnalyzer:
 
                         self.results[port_num].update(tool_data)
 
-        print(self.results)
         return self.results

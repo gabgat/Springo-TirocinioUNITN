@@ -3,7 +3,7 @@ import subprocess
 from dotenv import load_dotenv
 
 from execute_command import execute_command
-from printer import printout
+from printer import printout, printerr
 
 class WPScan:
     def __init__(self, url, port, tools_dir, timestamp):
@@ -19,8 +19,15 @@ class WPScan:
 
     def run_wpscan(self):
         """Run WPScan WordPress website vulnerability scanner"""
+        # Update WPScan Database
+        try:
+            printout("Updating WPScan DB...")
+            subprocess.run(["wpscan", "--update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        except subprocess.CalledProcessError:
+            printerr("WPScan DB update failed.")
+
         #Check if website is WordPress (no waste of tokens)
-        if subprocess.run(["wpscan", "--url", self.url],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode is not 0:
+        if subprocess.run(["wpscan", "--url", self.url],stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
             printout(f"{self.url} is not a WordPress website")
             return None
 
