@@ -16,13 +16,13 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.14-rc-slim-trixie
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
 COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
 
-#Adding kali's repos and tools + cleanup
+# Add Kali repos + install security tools in single layer
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gnupg curl ca-certificates && \
+    apt-get install -y --no-install-recommends gnupg curl && \
     curl -fsSL https://archive.kali.org/archive-key.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/kali.gpg && \
     echo "deb http://http.kali.org/kali kali-rolling main contrib non-free non-free-firmware" > /etc/apt/sources.list.d/kali.list && \
     apt-get update && \
@@ -37,24 +37,18 @@ RUN apt-get update && \
         enum4linux-ng \
         wpscan \
         dnsutils \
-    && \
-    apt-get autoremove -y && \
+    && apt-get autoremove -y && \
     apt-get autoclean && \
     rm -rf /var/lib/apt/lists/* \
            /var/cache/apt/archives/* \
-           /var/cache/debconf/* \
            /usr/share/doc/* \
            /usr/share/man/* \
            /usr/share/info/* \
            /usr/share/locale/* \
-           /usr/share/lintian/* \
-           /usr/share/common-licenses/* \
            /tmp/* \
-           /var/tmp/* \
-           /root/.cache/* && \
-    apt-get purge -y --auto-remove gnupg curl && \
-    find /usr/lib/python*/dist-packages/ -name "*.pyc" -delete && \
-    find /usr/lib/python*/dist-packages/ -name "__pycache__" -delete
+           /var/tmp/*
+
+ENV PATH=/root/.local/bin:$PATH
 
 WORKDIR /app
 RUN mkdir -p outputs
