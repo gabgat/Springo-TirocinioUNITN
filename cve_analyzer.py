@@ -272,7 +272,7 @@ class CVEChecker:
                                 if 'versionEndIncluding' in cpe:
                                     constraint += f" up to {cpe['versionEndIncluding']}"
                                 elif 'versionEndExcluding' in cpe:
-                                    constraint += f" before {cve['versionEndExcluding']}"
+                                    constraint += f" before {cpe['versionEndExcluding']}"
                                 version_constraints.append(constraint.strip())
 
             elif section == 'cvelistv5':

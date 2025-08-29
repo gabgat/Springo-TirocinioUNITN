@@ -19,7 +19,7 @@ def execute_command(command, tool_name, output_file, url):
             universal_newlines=True
         )
 
-        stdout, stderr = process.communicate()#(timeout=3600)
+        stdout, stderr = process.communicate(timeout=86400) #24H timeout, only for emergencies!
 
         result = {
             "tool": tool_name,

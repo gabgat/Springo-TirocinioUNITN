@@ -155,7 +155,7 @@ def main():
         printout(f"Services Detected: {len(scan_results.get('services', {}))}")
         printout(f"Output Directory: {output_dir}")
         end_time = datetime.now()
-        printout(f"Script finished at {end_time.strftime('%Y%m%d_%H%M%S')}")
+        printout(f"Script finished at {end_time.strftime('%d/%m/%Y %H:%M:%S')}")
         printout(f"Generating text report at {output_dir}/reports/report.txt...")
         PrintTXT(output_dir, results, cves, start_time, end_time).print_results()
 

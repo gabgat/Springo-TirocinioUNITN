@@ -2,11 +2,12 @@ import os
 
 from printer import printerr, printout, printwarn
 
+
 class PrintTXT:
     def __init__(self, output_dir, results, cves, start_time, end_time):
         self.output_file = os.path.join(output_dir, "reports", "report.txt")
-        self.results = results
-        self.cves = cves
+        self.results = results if isinstance(results, dict) else {}
+        self.cves = cves if isinstance(cves, dict) else {}
         self.start_time = start_time
         self.end_time = end_time
         self.total_time = (end_time - start_time)
@@ -14,6 +15,16 @@ class PrintTXT:
 
     def start(self):
         printout("Parsing the results for report")
+
+        # Create reports directory if it doesn't exist
+        reports_dir = os.path.dirname(self.output_file)
+        if not os.path.exists(reports_dir):
+            try:
+                os.makedirs(reports_dir, exist_ok=True)
+            except OSError as e:
+                printerr(f"Error creating reports directory: {e}")
+                return
+
         self.create_output()
         printout("Results are parsed and ready to be written")
         printout("Writing results to file...")
@@ -21,10 +32,11 @@ class PrintTXT:
 
     def print_results(self):
         try:
-            with open(self.output_file, "w") as f:
+            with open(self.output_file, "w", encoding='utf-8') as f:
                 f.write(self.output)
+            printout(f"Report written successfully to {self.output_file}")
         except IOError as e:
-            printerr(f"Error for reports.txt: {e}")
+            printerr(f"Error writing report.txt: {e}")
 
     def create_output(self):
         title = """
@@ -40,35 +52,56 @@ class PrintTXT:
         disclaimer = "The results of this scan are indicative and may be inaccurate (especially for CVEs),\nfurther analysis and research is required. You should not use this script for malicious purposes!\n\n"
 
         info_title = """
-        
+
 .-------.
 |INFOS: |
 '-------'"""
 
-        open_ports = self.results.get("0", {}).get("nmap").get("open_ports")
+        # Safe access to nmap data
+        nmap_data = self.results.get("0", {}).get("nmap", {})
+        open_ports = nmap_data.get("open_ports", [])
+
+        # Format open ports safely
+        open_ports_str = ""
+        if isinstance(open_ports, list) and open_ports:
+            for port in open_ports:
+                open_ports_str += f"  - {port}\n"
+        else:
+            open_ports_str = "  None\n"
+
         info = f"""
-Target IP: {self.results.get("0", {}).get("nmap").get("target_ip")}
+Target IP: {nmap_data.get("target_ip", "Unknown")}
 Open Ports:
-{(''.join([f'  - {port}\n' for port in open_ports]) if open_ports else '  None\n').rstrip()}
-Detected OS: {self.results.get("0", {}).get("nmap").get("os")}
-Type: {self.results.get("0", {}).get("nmap").get("vendor")}: {self.results.get("0", {}).get("nmap").get("family")} - {self.results.get("0", {}).get("nmap").get("type")}
-MAC Address: {self.results.get("0", {}).get("nmap").get("mac")}
-Scan Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}
-Scan Ended at: {self.end_time.strftime('%Y-%m-%d %H:%M:%S')}
-Total Time: {self.total_time}
+{open_ports_str.rstrip()}
+Detected OS: {nmap_data.get("os", "Unknown")}
+Type: {nmap_data.get("vendor", "Unknown")}: {nmap_data.get("family", "Unknown")} - {nmap_data.get("type", "Unknown")}
+MAC Address: {nmap_data.get("mac", "Unknown")}
+Scan Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S') if self.start_time else 'Unknown'}
+Scan Ended at: {self.end_time.strftime('%Y-%m-%d %H:%M:%S') if self.end_time else 'Unknown'}
+Total Time: {self.total_time if self.total_time else 'Unknown'}
 """
 
         service_title = """
-        
+
 .------------------.
 |SERVICE ANALYSIS: |
 '------------------'"""
 
         self.output += title + disclaimer + info_title + info + service_title
 
-        normalized = {int(k): v for k, v in self.results.items()}
-        for port in sorted(normalized):
+        # Convert keys to integers safely and sort
+        normalized = {}
+        for k, v in self.results.items():
+            try:
+                normalized[int(k)] = v
+            except (ValueError, TypeError):
+                printerr(f"Invalid port key: {k}")
+                continue
+
+        for port in sorted(normalized.keys()):
             data = normalized[port]
+            if not isinstance(data, dict):
+                continue
 
             if port == 0:
                 continue
@@ -99,12 +132,12 @@ Total Time: {self.total_time}
                     wpscan_info = self.wpscan_info(data)
                     self.output += wpscan_info
             elif data:
-                self.output += f"\n{"-" * 30}\n(Port {port})\n  No service found for port {port}, data is founded\n  This is an error, please report it to the author\n"
+                self.output += f"\n{"-" * 30}\n(Port {port})\n  No service found for port {port}, data is found\n  This is an error, please report it to the author\n"
             else:
                 self.output += f"\n{"-" * 30}\n(Port {port})\n  No service found for port {port}\n  If you think this is an error please report it to the author\n"
 
         cves_title = """
-        
+
 .---------------.
 |CVEs ANALYSIS: |
 '---------------'"""
@@ -112,23 +145,37 @@ Total Time: {self.total_time}
         if self.cves:
             self.output += self.cve_info()
         else:
-            self.output += "No CVEs found"
-
+            self.output += "\nNo CVEs found\n"
 
     @staticmethod
     def ftp_info(port, data):
         title = f"""FTP (Port {port})"""
-        product = data.get("nftp", {}).get("product")
-        version = data.get("nftp", {}).get("version")
-        extra_info = data.get("nftp", {}).get("extrainfo")
-        anon_login = data.get("aftp", {}).get("anonymous_login")
-        credentials = "\n".join(f"    - {creds['login']}:{creds['password']}" for creds in data.get("hydra", []))
-        directories = data.get("nftp", {}).get("directory_listing")
-        bounce = data.get("nftp", {}).get("ftp_bounce_vulnerable")
-        proftpd_bd = data.get("nftp", {}).get("proftpd_backdoor")
-        vsftpd_bd = data.get("nftp", {}).get("vsftpd_backdoor")
-        vuln_cve2010_4221 = data.get("nftp", {}).get("ftp_vuln_cve2010_4221") if data.get("nftp", {}).get("ftp_vuln_cve2010_4221") else "False"
-        vuln_cve2010_1938 = data.get("nftp", {}).get("ftp_vuln_cve2010_1938") if data.get("nftp", {}).get("ftp_vuln_cve2010_1938") else "False"
+
+        nftp_data = data.get("nftp", {})
+        aftp_data = data.get("aftp", {})
+        hydra_data = data.get("hydra", [])
+
+        product = nftp_data.get("product", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        version = nftp_data.get("version", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        extra_info = nftp_data.get("extrainfo", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        anon_login = aftp_data.get("anonymous_login", "Unknown") if isinstance(aftp_data, dict) else "Unknown"
+
+        credentials = ""
+        if isinstance(hydra_data, list):
+            for creds in hydra_data:
+                if isinstance(creds, dict):
+                    login = creds.get('login', '')
+                    password = creds.get('password', '')
+                    credentials += f"    - {login}:{password}\n"
+        if not credentials:
+            credentials = "    None\n"
+
+        directories = nftp_data.get("directory_listing", "None") if isinstance(nftp_data, dict) else "None"
+        bounce = nftp_data.get("ftp_bounce_vulnerable", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        proftpd_bd = nftp_data.get("proftpd_backdoor", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        vsftpd_bd = nftp_data.get("vsftpd_backdoor", "Unknown") if isinstance(nftp_data, dict) else "Unknown"
+        vuln_cve2010_4221 = nftp_data.get("ftp_vuln_cve2010_4221", "False") if isinstance(nftp_data, dict) else "False"
+        vuln_cve2010_1938 = nftp_data.get("ftp_vuln_cve2010_1938", "False") if isinstance(nftp_data, dict) else "False"
 
         return f"""
 {"-" * 30}
@@ -138,7 +185,7 @@ Total Time: {self.total_time}
   Extra Info: {extra_info}
   Anonymous Login: {anon_login}
   Credentials: 
-{credentials}
+{credentials.rstrip()}
   Directory Listing: {directories}
   FTP Bounce: {bounce}
   ProFTPD Backdoor: {proftpd_bd}
@@ -150,27 +197,46 @@ Total Time: {self.total_time}
     @staticmethod
     def ssh_info(port, data):
         title = f"""SSH (Port {port})"""
-        product = data.get("nssh", {}).get("product")
-        version = data.get("nssh", {}).get("version")
-        protocol = data.get("ssh-audit", {}).get("protocol")
-        extra_info = data.get("nssh", {}).get("extrainfo")
-        pubkey_acceptance = data.get("nssh", {}).get("publickey_acceptance")
-        cves = data.get("ssh-audit", {}).get("cves") if data.get("ssh-audit", {}).get("cves") else "No CVEs found"
+
+        nssh_data = data.get("nssh", {})
+        ssh_audit_data = data.get("ssh-audit", {})
+
+        product = nssh_data.get("product", "Unknown") if isinstance(nssh_data, dict) else "Unknown"
+        version = nssh_data.get("version", "Unknown") if isinstance(nssh_data, dict) else "Unknown"
+        protocol = ssh_audit_data.get("protocol", "Unknown") if isinstance(ssh_audit_data, dict) else "Unknown"
+        extra_info = nssh_data.get("extrainfo", "Unknown") if isinstance(nssh_data, dict) else "Unknown"
+        pubkey_acceptance = nssh_data.get("publickey_acceptance", "Unknown") if isinstance(nssh_data,
+                                                                                           dict) else "Unknown"
+
+        cves = "No CVEs found"
+        if isinstance(ssh_audit_data, dict) and ssh_audit_data.get("cves"):
+            cves = ssh_audit_data.get("cves")
+
         algorithms = ""
+        if isinstance(ssh_audit_data, dict):
+            for alg, alg_data in ssh_audit_data.items():
+                if alg not in ["protocol", "software", "cves"] and isinstance(alg_data, dict):
+                    description = ""
+                    fail = alg_data.get("fail")
+                    warn = alg_data.get("warn")
 
-        for alg, data in data.get("ssh-audit", {}).items():
-            if alg not in ["protocol", "software", "cves"]:
-                description = ""
-                fail = data.get("fail")
-                warn = data.get("warn")
+                    if fail and isinstance(fail, list):
+                        fail_str = "; ".join(str(f) for f in fail)
+                        description += f"{fail_str}; "
+                    elif fail:
+                        description += f"{fail}; "
 
-                if data['fail'] and isinstance(fail, list):
-                    fail = "; ".join(fail)
-                    description += f"{fail}; "
-                if data['warn'] and isinstance(warn, list):
-                    warn = "; ".join(warn)
-                    description += f"{warn};"
-                algorithms += f"    - {alg}: {description}\n"
+                    if warn and isinstance(warn, list):
+                        warn_str = "; ".join(str(w) for w in warn)
+                        description += f"{warn_str};"
+                    elif warn:
+                        description += f"{warn};"
+
+                    if description:
+                        algorithms += f"    - {alg}: {description}\n"
+
+        if not algorithms:
+            algorithms = "    None found\n"
 
         return f"""
 {"-" * 30}
@@ -182,21 +248,32 @@ Total Time: {self.total_time}
   Public Key Acceptance: {pubkey_acceptance}
   SA CVEs: {cves}
   Weak Algorithms: 
-{algorithms}"""
+{algorithms.rstrip()}"""
 
     @staticmethod
     def smtp_info(port, data):
         title = f"""SMTP (Port {port})"""
-        product = data.get("nsmtp", {}).get("product")
-        version = data.get("nsmtp", {}).get("version")
-        extra_info = data.get("nsmtp", {}).get("extrainfo")
-        smtp_commands = ""
-        open_relay = data.get("nsmtp", {}).get("open_relay")
-        enum_users = data.get("nsmtp", {}).get("enum_users")
-        vuln_cve2010_4344 = data.get("nsmtp", {}).get("vuln_cve2010_4344")
 
-        for command in data.get("nsmtp", {}).get("smtp_commands"):
-            smtp_commands += f"    - {command}\n"
+        nsmtp_data = data.get("nsmtp", {})
+
+        product = nsmtp_data.get("product", "Unknown") if isinstance(nsmtp_data, dict) else "Unknown"
+        version = nsmtp_data.get("version", "Unknown") if isinstance(nsmtp_data, dict) else "Unknown"
+        extra_info = nsmtp_data.get("extrainfo", "Unknown") if isinstance(nsmtp_data, dict) else "Unknown"
+        open_relay = nsmtp_data.get("open_relay", "Unknown") if isinstance(nsmtp_data, dict) else "Unknown"
+        enum_users = nsmtp_data.get("enum_users", "None") if isinstance(nsmtp_data, dict) else "None"
+        vuln_cve2010_4344 = nsmtp_data.get("vuln_cve2010_4344", "Unknown") if isinstance(nsmtp_data,
+                                                                                         dict) else "Unknown"
+
+        smtp_commands = ""
+        if isinstance(nsmtp_data, dict):
+            commands = nsmtp_data.get("smtp_commands")
+            if isinstance(commands, list):
+                for command in commands:
+                    smtp_commands += f"    - {command}\n"
+            else:
+                smtp_commands = "    None\n"
+        else:
+            smtp_commands = "    Unknown\n"
 
         return f"""
 {"-" * 30}
@@ -205,7 +282,7 @@ Total Time: {self.total_time}
   Version: {version}
   Extra Info: {extra_info}
   SMTP Commands: 
-{smtp_commands}
+{smtp_commands.rstrip()}
   Open Relay: {open_relay}
   Enum Users: {enum_users}
   CVE-2010-4344: {vuln_cve2010_4344}
@@ -219,14 +296,17 @@ Total Time: {self.total_time}
         open_resolver = False
         amplification = False
 
-        for item in data.get("dig", []):
-            if item.get("vulnerability_type") == "information_disclosure":
-                information_disclosure = True
-            if item.get("vulnerability_type") == "open_resolver":
-                open_resolver = True
-            if item.get("vulnerability_type") == "amplification":
-                amplification = True
-
+        dig_data = data.get("dig", [])
+        if isinstance(dig_data, list):
+            for item in dig_data:
+                if isinstance(item, dict):
+                    vuln_type = item.get("vulnerability_type")
+                    if vuln_type == "information_disclosure":
+                        information_disclosure = True
+                    elif vuln_type == "open_resolver":
+                        open_resolver = True
+                    elif vuln_type == "amplification":
+                        amplification = True
 
         return f"""
 {"-" * 30}
@@ -239,22 +319,57 @@ Total Time: {self.total_time}
     @staticmethod
     def smb_info(port, data):
         title = f"""SMB (Port {port})"""
-        product = data.get("nsmb", {}).get("product")
-        version = data.get("nsmb", {}).get("version")
+
+        nsmb_data = data.get("nsmb", {})
+        enum4linux_data = data.get("enum4linux", {})
+
+        product = nsmb_data.get("product", "Unknown") if isinstance(nsmb_data, dict) else "Unknown"
+        version = nsmb_data.get("version", "Unknown") if isinstance(nsmb_data, dict) else "Unknown"
+
         dialects = ""
-        vuln_ms10_054 = data.get("nsmb", {}).get("vulnerabilities", {}).get("smb-vuln-ms10-054")
-        vuln_regsvc_dos = data.get("nsmb", {}).get("vulnerabilities", {}).get("smb-vuln-regsvc-dos")
-        vuln_ms10_061 = data.get("nsmb", {}).get("vulnerabilities", {}).get("smb-vuln-ms10-061")
+        if isinstance(nsmb_data, dict):
+            dialects_list = nsmb_data.get("dialects", [])
+            if isinstance(dialects_list, list):
+                for dialect in dialects_list:
+                    dialects += f"    - {dialect}\n"
+            else:
+                dialects = "    Unknown\n"
+        else:
+            dialects = "    Unknown\n"
+
+        # Handle vulnerabilities safely
+        vulnerabilities = nsmb_data.get("vulnerabilities", {}) if isinstance(nsmb_data, dict) else {}
+        vuln_ms10_054 = "Unknown"
+        vuln_regsvc_dos = "Unknown"
+        vuln_ms10_061 = "Unknown"
+
+        if isinstance(vulnerabilities, dict):
+            vuln_ms10_054 = vulnerabilities.get("smb-vuln-ms10-054", "Unknown")
+            vuln_regsvc_dos = vulnerabilities.get("smb-vuln-regsvc-dos", "Unknown")
+            vuln_ms10_061 = vulnerabilities.get("smb-vuln-ms10-061", "Unknown")
+
         users = ""
-        pass_length = data.get("enum4linux", {}).get("policy", {}).get("min_password_length") if data.get("enum4linux", {}).get("policy", {}).get("min_password_length") else "Unknown"
-        pass_complex = data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_COMPLEX") if data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_COMPLEX") else "Unknown"
-        pass_cleartext = data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT") if data.get("enum4linux", {}).get("policy", {}).get("DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT") else "False"
+        if isinstance(enum4linux_data, dict):
+            users_dict = enum4linux_data.get("users", {})
+            if isinstance(users_dict, dict):
+                for user_id, user in users_dict.items():
+                    users += f"    - {user}\n"
+            else:
+                users = "    None found\n"
+        else:
+            users = "    Unknown\n"
 
-        for uuid, user in data.get("enum4linux", {}).get("users", {}).items():
-            users += f"    - {user}\n"
+        # Handle policy safely
+        pass_length = "Unknown"
+        pass_complex = "Unknown"
+        pass_cleartext = "Unknown"
 
-        for dialect in data.get("nsmb", {}).get("dialects"):
-            dialects += f"    - {dialect}\n"
+        if isinstance(enum4linux_data, dict):
+            policy = enum4linux_data.get("policy", {})
+            if isinstance(policy, dict):
+                pass_length = policy.get("min_password_length", "Unknown")
+                pass_complex = policy.get("DOMAIN_PASSWORD_COMPLEX", "Unknown")
+                pass_cleartext = policy.get("DOMAIN_PASSWORD_PASSWORD_STORE_CLEARTEXT", "Unknown")
 
         return f"""
 {"-" * 30}
@@ -262,12 +377,12 @@ Total Time: {self.total_time}
   Product: {product}
   Version: {version}
   Dialects: 
-{dialects}
+{dialects.rstrip()}
   Vulnerable To MS10-054: {vuln_ms10_054}
   Vulnerable To REGSVR32: {vuln_regsvc_dos}
   Vulnerable To MS10-061: {vuln_ms10_061}
   Users: 
-{users}
+{users.rstrip()}
   Min Password Length Required: {pass_length}
   Password Complexity Required: {pass_complex}
   Password Stored In Cleartext: {pass_cleartext}
@@ -276,74 +391,144 @@ Total Time: {self.total_time}
     @staticmethod
     def http_info(port, data):
         title = f"""HTTP (Port {port})"""
-        website_title = data.get("nhttp", {}).get("http-title")
-        git_url = data.get("nhttp", {}).get("http-git", {}).get("url")
-        git_type = data.get("nhttp", {}).get("http-git", {}).get("type")
+
+        nhttp_data = data.get("nhttp", {})
+        nikto_data = data.get("nikto", [])
+        ffuf_data = data.get("ffuf", [])
+
+        website_title = "Unknown"
+        git_url = "None"
+        git_type = "None"
+        waf = False
+        open_proxy = False
+
+        if isinstance(nhttp_data, dict):
+            website_title = nhttp_data.get("http_title", "Unknown")
+
+            git_info = nhttp_data.get("http_git", {})
+            if isinstance(git_info, dict):
+                git_url = git_info.get("url", "None")
+                git_type = git_info.get("type", "None")
+            elif not git_info:
+                git_url = "None"
+                git_type = "None"
+
+            waf = nhttp_data.get("http_waf_detect", False)
+            open_proxy = nhttp_data.get("http_open_proxy", False)
+
         robots = ""
+        if isinstance(nhttp_data, dict):
+            http_robots = nhttp_data.get("http_robots")
+            if isinstance(http_robots, list):
+                for path in http_robots:
+                    robots += f"    - {path}\n"
+            else:
+                robots = "    None\n"
+        else:
+            robots = "    Unknown\n"
+
         auth = ""
+        if isinstance(nhttp_data, dict):
+            http_auth_finder = nhttp_data.get("http_auth_finder")
+            if isinstance(http_auth_finder, list):
+                for url in http_auth_finder:
+                    auth += f"    - {url}\n"
+            else:
+                auth = "    None\n"
+        else:
+            auth = "    Unknown\n"
+
         methods = ""
-        waf = data.get("nhttp", {}).get("http_waf_detect")
-        open_proxy = data.get("nhttp", {}).get("http_open_proxy")
+        if isinstance(nhttp_data, dict):
+            http_methods = nhttp_data.get("http_methods")
+            if isinstance(http_methods, list):
+                for method in http_methods:
+                    methods += f"    - {method}\n"
+            elif isinstance(http_methods, str):
+                methods = f"    {http_methods}\n"
+            else:
+                methods = "    None\n"
+        else:
+            methods = "    Unknown\n"
+
         nikto_msg = ""
+        if isinstance(nikto_data, list):
+            for i in nikto_data:
+                if isinstance(i, dict):
+                    msg = i.get("msg", "")
+                    nikto_msg += f"    - {msg}\n"
+        if not nikto_msg:
+            nikto_msg = "    None\n"
+
         paths = ""
-
-        for path in data.get("nhttp", {}).get("http_robots"):
-            robots += f"    - {path}\n"
-        for url in data.get("nhttp", {}).get("http_auth_finder"):
-            auth += f"    - {url}\n"
-        for i in data.get("nikto", []):
-            nikto_msg += f"    - {i.get("msg")}\n"
-        for method in data.get("nhttp", []).get("http-methods", []):
-            methods += f"    - {method}\n"
-
         ffuf_2 = []
         ffuf_3 = []
         ffuf_4 = []
-        for item in data.get("ffuf", []):
-            if item.get("status") in [200, 204]:
-                ffuf_2.append(f"{item.get("status")}: {item.get("url")} ")
-            elif item.get("status") in [301, 302, 307]:
-                ffuf_3.append(f"{item.get("status")}: {item.get("url")}")
-            elif item.get("status") == 401:
-                ffuf_4.append(f"{item.get("status")}: {item.get("url")}")
-            else:
-                printwarn(f"Unhandled status code: {item.get("status")}, ignoring")
 
-        for path in ffuf_2:
+        if isinstance(ffuf_data, list):
+            for item in ffuf_data:
+                if isinstance(item, dict):
+                    status = item.get("status")
+                    url = item.get("url", "")
+
+                    if status in [200, 204]:
+                        ffuf_2.append(f"{status}: {url}")
+                    elif status in [301, 302, 307]:
+                        ffuf_3.append(f"{status}: {url}")
+                    elif status == 401:
+                        ffuf_4.append(f"{status}: {url}")
+                    elif status is not None:
+                        printwarn(f"Unhandled status code: {status}, ignoring")
+
+        for path in ffuf_2 + ffuf_3 + ffuf_4:
             paths += f"    - {path}\n"
-        for path in ffuf_3:
-            paths += f"    - {path}\n"
-        for path in ffuf_4:
-            paths += f"    - {path}\n"
+        if not paths:
+            paths = "    None\n"
 
         return f"""
 {"-" * 30}
 {title}
   Website Title: {website_title}
   Login URLs: 
-{auth}
+{auth.rstrip()}
   Git Project URL: {git_url}
   Git Project Type: {git_type}
   Hidden Directories (Robots.txt): 
-{robots if robots else "None"}
+{robots.rstrip()}
   Accepted Risky Methods: 
-{methods if methods else "None"}
+{methods.rstrip()}
   Web Application Firewall ON: {waf}
   Open Proxy: {open_proxy}
-  Warnings Messages: 
-{nikto_msg}
+  Warning Messages: 
+{nikto_msg.rstrip()}
   Found Paths: 
-{paths}
+{paths.rstrip()}
   """
 
     @staticmethod
     def ssl_info(data):
-        protocols = data.get("sslscan", {}).get("protocols")
-        ciphers_weak = data.get("sslscan", {}).get("ciphers", {}).get("weak")
-        ciphers_insecure = data.get("sslscan", {}).get("ciphers", {}).get("insecure")
-        cert_expired = data.get("sslscan", {}).get("certificate", {}).get("expired")
-        cert_self_signed = data.get("sslscan", {}).get("certificate", {}).get("self_signed")
-        cert_short_key = data.get("sslscan", {}).get("certificate", {}).get("short_key")
+        sslscan_data = data.get("sslscan", {})
+
+        protocols = "None"
+        ciphers_weak = "None"
+        ciphers_insecure = "None"
+        cert_expired = "Unknown"
+        cert_self_signed = "Unknown"
+        cert_short_key = "Unknown"
+
+        if isinstance(sslscan_data, dict):
+            protocols = sslscan_data.get("protocols", "None")
+
+            ciphers = sslscan_data.get("ciphers", {})
+            if isinstance(ciphers, dict):
+                ciphers_weak = ciphers.get("weak", "None")
+                ciphers_insecure = ciphers.get("insecure", "None")
+
+            certificate = sslscan_data.get("certificate", {})
+            if isinstance(certificate, dict):
+                cert_expired = certificate.get("expired", "Unknown")
+                cert_self_signed = certificate.get("self_signed", "Unknown")
+                cert_short_key = certificate.get("short_key", "Unknown")
 
         return f"""  SSL Protocols: {protocols}
   Weak Ciphers: {ciphers_weak}
@@ -355,88 +540,170 @@ Total Time: {self.total_time}
 
     @staticmethod
     def wpscan_info(data):
-        version = data.get("version")
-        release = data.get("release")
-        secure = data.get("secure")
+        wpscan_data = data.get("wpscan", {})
+        if not isinstance(wpscan_data, dict):
+            return "  WordPress scan data not available\n"
+
+        version = wpscan_data.get("version", "Unknown")
+        release = wpscan_data.get("release", "Unknown")
+        secure = wpscan_data.get("secure", "Unknown")
+
         users = ""
+        users_list = wpscan_data.get("users", [])
+        if isinstance(users_list, list):
+            for user in users_list:
+                users += f"    - {user}\n"
+        if not users:
+            users = "    None\n"
+
         found_urls = ""
+        interesting_findings = wpscan_data.get("interesting_findings", [])
+        if isinstance(interesting_findings, list):
+            for url in interesting_findings:
+                found_urls += f"    - {url}\n"
+        if not found_urls:
+            found_urls = "    None\n"
+
         wp_vulnerabilities = ""
+        vulnerabilities = wpscan_data.get("vulnerabilities", [])
+        if isinstance(vulnerabilities, list):
+            for wp_vulnerability in vulnerabilities:
+                if isinstance(wp_vulnerability, dict):
+                    title = wp_vulnerability.get("title", "")
+                    cve = wp_vulnerability.get("cve", "")
+                    cve_prefix = f"CVE-{cve}:" if cve else ""
+                    wp_vulnerabilities += f"    - {cve_prefix}{title}\n"
+        if not wp_vulnerabilities:
+            wp_vulnerabilities = "    None\n"
+
         plugins = ""
+        plugins_dict = wpscan_data.get("plugins", {})
+        if isinstance(plugins_dict, dict):
+            for plugin, info in plugins_dict.items():
+                if isinstance(info, dict):
+                    plugins += f"    - {plugin}: {info.get('version', 'Unknown')}\n"
+                    plugins += f"        - Outdated: {info.get('outdated', 'Unknown')}\n"
+                    plugins += f"        - Latest Version: {info.get('latest_version', 'Unknown')}\n"
+                    plugins += f"        - Vulnerabilities:\n"
+
+                    plugin_vulns = info.get("vulnerabilities", [])
+                    if isinstance(plugin_vulns, list):
+                        for cve in plugin_vulns:
+                            if isinstance(cve, dict):
+                                title = cve.get("title", "")
+                                cve_id = cve.get("cve", "")
+                                cve_prefix = f"CVE-{cve_id}:" if cve_id else ""
+                                plugins += f"          - {cve_prefix}{title}\n"
+                    else:
+                        plugins += "          - None\n"
+        if not plugins:
+            plugins = "    None\n"
+
         main_theme = ""
-        themes = ""
-
-
-        for user in data.get("users", []):
-            users += f"    - {user}\n"
-
-        for url in data.get("interesting_findings", []):
-            found_urls += f"    - {url}\n"
-        for wp_vulnerability in data.get("vulnerabilities", []):
-            wp_vulnerabilities += f"    - {f"CVE-{wp_vulnerability.get("cve")}:" if wp_vulnerability.get("cve") else ""}{wp_vulnerability.get("title")}\n"
-
-        for plugin, info in data.get("plugins", []):
-            plugins += f"    - {plugin}: {info.get("version")}\n"
-            plugins += f"        - Outdated: {info.get("outdated")}\n"
-            plugins += f"        - Latest Version: {info.get("latest_version")}\n"
-            plugins += f"        - Vulnerabilities:\n"
-            for cve in info.get("vulnerabilities", []):
-                plugins += f"          - {f"CVE-{cve.get("cve")}:" if cve.get("cve") else ""}{cve.get("title")}\n"
-
-        for info in data.get("main_theme", []):
-            main_theme += f"    Theme Name: {info.get("name")}: {info.get("version")}\n"
-            main_theme += f"    Outdated: {info.get("outdated")}\n"
-            main_theme += f"    Latest Version: {info.get("latest_version")}\n"
+        main_theme_data = wpscan_data.get("main_theme", {})
+        if isinstance(main_theme_data, dict):
+            main_theme += f"    Theme Name: {main_theme_data.get('name', 'Unknown')}: {main_theme_data.get('version', 'Unknown')}\n"
+            main_theme += f"    Outdated: {main_theme_data.get('outdated', 'Unknown')}\n"
+            main_theme += f"    Latest Version: {main_theme_data.get('latest_version', 'Unknown')}\n"
             main_theme += f"    Vulnerabilities:\n"
-            for cve in info.get("vulnerabilities", []):
-                main_theme += f"      - {f"CVE-{cve.get("cve")}:" if cve.get("cve") else ""}{cve.get("title")}\n"
 
-        for theme in data.get("themes", []):
-            themes += f"    - {theme.get("name")}\n"
-            themes += f"        Version: {theme.get("version")}\n"
-            themes += f"        Outdated: {theme.get("outdated")}\n"
-            themes += f"        Latest Version: {theme.get("latest_version")}\n"
-            themes += f"        Vulnerabilities:\n"
-            for cve in theme.get("vulnerabilities", []):
-                themes += f"        - {f"CVE-{cve.get("cve")}:" if cve.get("cve") else ""}{cve.get("title")}\n"
+            theme_vulns = main_theme_data.get("vulnerabilities", [])
+            if isinstance(theme_vulns, list):
+                for cve in theme_vulns:
+                    if isinstance(cve, dict):
+                        title = cve.get("title", "")
+                        cve_id = cve.get("cve", "")
+                        cve_prefix = f"CVE-{cve_id}:" if cve_id else ""
+                        main_theme += f"      - {cve_prefix}{title}\n"
+            else:
+                main_theme += "      - None\n"
+        else:
+            main_theme = "    No main theme data\n"
 
-        if themes == "":
-            themes = "    No other theme founded"
+        themes = ""
+        themes_dict = wpscan_data.get("themes", {})
+        if isinstance(themes_dict, dict) and themes_dict:
+            for theme_slug, theme_data in themes_dict.items():
+                if isinstance(theme_data, dict):
+                    themes += f"    - {theme_slug}\n"
+                    themes += f"        Version: {theme_data.get('version', 'Unknown')}\n"
+                    themes += f"        Outdated: {theme_data.get('outdated', 'Unknown')}\n"
+                    themes += f"        Latest Version: {theme_data.get('latest_version', 'Unknown')}\n"
+                    themes += f"        Vulnerabilities:\n"
 
-        return  f"""  Wordpress Version: {version} - {release}
+                    theme_vulns = theme_data.get("vulnerabilities", [])
+                    if isinstance(theme_vulns, list):
+                        for cve in theme_vulns:
+                            if isinstance(cve, dict):
+                                title = cve.get("title", "")
+                                cve_id = cve.get("cve", "")
+                                cve_prefix = f"CVE-{cve_id}:" if cve_id else ""
+                                themes += f"        - {cve_prefix}{title}\n"
+                    else:
+                        themes += "        - None\n"
+        else:
+            themes = "    No other themes found\n"
+
+        return f"""  WordPress Version: {version} - {release}
   Secure: {secure}
-  Founded Usernames: 
-{users}
-  Founded Special URLs: 
-{found_urls}
-  Wordpress Vulnerabilities: 
-{wp_vulnerabilities}
+  Found Usernames: 
+{users.rstrip()}
+  Found Special URLs: 
+{found_urls.rstrip()}
+  WordPress Vulnerabilities: 
+{wp_vulnerabilities.rstrip()}
   Plugins: 
-{plugins}
+{plugins.rstrip()}
   Main Theme: 
-{main_theme}
+{main_theme.rstrip()}
   Other Themes:
-{themes}
+{themes.rstrip()}
   """
 
     def cve_info(self):
         output = ""
 
+        if not isinstance(self.cves, dict):
+            return "\nNo CVE data available\n"
+
         cves = self.cves.get("cves", [])
         stats = self.cves.get("statistics", {})
 
         output += "\n"
-        output += f"CVEs Found: {stats.get("cves_found")}\n"
-        output += f"CVSS Medium: {stats.get("cvss_medium")}  (calculated with available data)\n"
-        output += f"Errors: {stats.get("errors")}\n"
+        output += f"CVEs Found: {stats.get('cves_found', 'Unknown')}\n"
+        output += f"CVSS Medium: {stats.get('cvss_medium', 'Unknown')}  (calculated with available data)\n"
+        output += f"Errors: {stats.get('errors', 'Unknown')}\n"
         output += "\n"
 
-        for cve in cves:
-            output += "\n"
-            output += f"CVE ID: {cve.get("cve_id")}\n"
-            output += f"  - PRODUCT: {cve.get("vendor")}:{cve.get("product")} {cve.get("version")}\n"
-            output += f"  - SUMMARY: {cve.get("summary").replace("\n", " ")}\n" if cve.get("summary") else "  - SUMMARY: N/A\n"
-            output += f"  - CVSS SCORE: {cve.get("cvss_score")}" if cve.get("cvss_score") else "  - CVSS SCORE: N/A"
-            output += f" -> {cve.get("severity")}\n" if cve.get("severity") else "\n"
-            #output += f"  - PUBLISHED ON: {cve.get("published")}\n" if cve.get("published") else "  - PUBLISHED ON: N/A\n"
+        if isinstance(cves, list):
+            for cve in cves:
+                if isinstance(cve, dict):
+                    output += "\n"
+                    output += f"CVE ID: {cve.get('cve_id', 'Unknown')}\n"
+
+                    vendor = cve.get("vendor", "Unknown")
+                    product = cve.get("product", "Unknown")
+                    version = cve.get("version", "Unknown")
+                    output += f"  - PRODUCT: {vendor}:{product} {version}\n"
+
+                    summary = cve.get("summary", "")
+                    if summary and isinstance(summary, str):
+                        summary_clean = summary.replace("\n", " ").strip()
+                        output += f"  - SUMMARY: {summary_clean}\n"
+                    else:
+                        output += "  - SUMMARY: N/A\n"
+
+                    cvss_score = cve.get("cvss_score", "")
+                    severity = cve.get("severity", "")
+                    if cvss_score:
+                        output += f"  - CVSS SCORE: {cvss_score}"
+                        if severity:
+                            output += f" -> {severity}\n"
+                        else:
+                            output += "\n"
+                    else:
+                        output += "  - CVSS SCORE: N/A\n"
+        else:
+            output += "No CVE data available\n"
 
         return output
